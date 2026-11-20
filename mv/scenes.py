@@ -1954,8 +1954,7 @@ def _motif(c, k, u, t, loc):
         n = int(len(msg) * clamp((u - 0.12) / 0.3))
         x = W / 2 - 200
         if n:
-            ht(c, msg[:n], x, H / 2 - 45, size=40, font="mono", color=INKD, anchor=(0, 0.5))
-            x += LY._font("mono", 40).getlength(msg[:n]) + 8
+            x += ht(c, msg[:n], x, H / 2 - 45, size=40, font="mono", color=INKD, anchor=(0, 0.5))[0] + 6
         if beat_index(t) % 2 == 0:
             fill(c, INKD, 1.0, (x, H / 2 - 70, x + 6, H / 2 - 20))
         put(c, spark_rgba(120), W / 2 + 330, H / 2 - 40, scale=ease_out_back(clamp((u - 0.5) * 4)), rot=t * 40)
