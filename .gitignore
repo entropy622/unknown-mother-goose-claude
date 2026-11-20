@@ -14,3 +14,4 @@ __pycache__/
 assets/cache/
 assets/ref_sheet.jpg
 audio/ref_sub_times.json
+audio/spectral.npz

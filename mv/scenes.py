@@ -10,6 +10,7 @@ from ui import (Layer, bubble_rgba, heart_rgba, checker_heart_rgba, reflect, dra
                 chain_links, monitor, text_lines_block, cloud_tex)
 import lyric as LY
 import kt
+import ai
 from lyric import T
 
 GREY = (0.30, 0.30, 0.32)
@@ -667,7 +668,9 @@ def s_select(c, t, lt, d):
     s = 640 / ch.shape[0] * z
     cx, cy = W / 2, 520 + 120 * (z - 1)
     jx, jy = kt.shake(t, (4 + 10 * (z - 1)) * kick_pulse(t), 2)
-    put(c, ch, cx, cy, scale=s * (1 + 0.015 * kick_pulse(t)))
+    ct = [x for x in LYS[17]["chars"] if x <= t]
+    alive = 0.12 + 0.88 * math.exp(-(t - ct[-1]) / 0.09) if ct else 0.12
+    put(c, ch, cx, cy, scale=s * (1 + 0.015 * kick_pulse(t)), alpha=alive)
     L = Layer()
     bw, bh = 470 * (2 - z), 680 * (2 - z) ** 0.5
     L.rect(cx - bw / 2 + jx, cy - bh / 2 + jy, cx + bw / 2 + jx, cy + bh / 2 + jy, (0.55, 0.55, 0.6), 1)
@@ -976,15 +979,29 @@ def _core_shot(t):
     return ((k - 1) // 2) % 3 if k else 0
 
 
+def _voice_ring(c, t, cx, cy, r0=330, r1=760, alpha=0.9):
+    L = Layer(ss=1)
+    ai.radial_spectrum(L, cx, cy, r0, r1, t, n=160, col=(0.92, 0.92, 0.94), th=5, accent=OR, gain=1.1, rot=t * 0.15)
+    L.comp(c, alpha, mode="add")
+
+
+def _voice_lines(c, t, y, amp=420, alpha=0.8):
+    L = Layer(ss=1)
+    e = ai.env(t)
+    for j, g in ((2, 0.25), (1, 0.45)):
+        L.polyline(ai.wave_pts(t - j * 0.025, 0, W, y, amp * (0.4 + e), n=420, span=0.045, taper=False), (g, g, g), 2)
+    L.polyline(ai.wave_pts(t, 0, W, y, amp * (0.4 + e), n=480, span=0.045, taper=False), OR, 4)
+    L.comp(c, alpha, mode="add")
+
+
 def _core_wide(c, t, lt):
     _tunnel(c, t, speed=1.0 + 0.6 * ramp(t, CHANT0, 112))
-    kt.echo_bg(c, "お―お―お―お―", t, size=90, color=(0.6, 0.6, 0.62), alpha=0.07, speed=380, gap=1.4)
+    _voice_ring(c, t, W / 2, H / 2 + 20)
     sc_img = load_asset("n02_scream", "mono")
     br = 1 + 0.04 * kick_pulse(t)
     dx, dy = kt.shake(t, 5 * kick_pulse(t), 4)
     put(c, sc_img, W / 2 + dx, H / 2 + 40 + dy, scale=900 / sc_img.shape[0] * br, rot=4 * math.sin(lt * 0.7))
     _shock(c, t)
-    _o_bursts(c, t)
 
 
 def s_core(c, t, lt, d):
@@ -996,25 +1013,28 @@ def s_core(c, t, lt, d):
         sc_img = load_asset("n02_scream", "mono")
         s = 900 / sc_img.shape[0] * 2.4 * (1 + 0.05 * kick_pulse(t))
         dx, dy = kt.shake(t, 9 * kick_pulse(t), 8)
+        _voice_lines(c, t, H / 2 - 260, amp=380, alpha=0.9)
         put(c, sc_img, W / 2 + dx, H / 2 + dy + 520, scale=s, rot=-3)
-        _o_bursts(c, t, cx=W / 2 + 380, cy=H / 2 - 120, size=260, scale_max=3.0)
         _shock(c, t, cx=W / 2, cy=H / 2 - 160)
     else:
-        c[:] = 0.06
+        c[:] = 0.05
         L = Layer(ss=1)
-        k16 = beat_index(t, 4)
-        for gy in range(9):
-            for gx in range(16):
-                x0, y0 = 100 + gx * 110, 50 + gy * 110
-                on = hash01(gx, gy, k16) > 0.72
-                g = 0.85 if on else 0.18 + 0.06 * hash01(gx, gy)
-                col_ = OR if on and hash01(gx, gy, k16, 2) > 0.7 else (g, g, g)
-                L.rect(x0, y0, x0 + 96, y0 + 96, col_)
+        nb = 24
+        m = ai.bands(t, nb)
+        cw_, ch_ = W / nb, H / 14
+        for gx in range(nb):
+            lvl = clamp(m[gx]) ** 1.4 * 14
+            for gy in range(14):
+                x0, y0 = gx * cw_ + 4, H - (gy + 1) * ch_ + 4
+                on = gy < lvl
+                top = on and gy >= lvl - 1
+                g = 0.88 if on else 0.13 + 0.04 * hash01(gx, gy)
+                L.rect(x0, y0, x0 + cw_ - 8, y0 + ch_ - 8, OR if top else (g, g, g + 0.01))
         L.comp(c)
-        _o_bursts(c, t, size=420, scale_max=2.6, color=OR)
+        sc_img = load_asset("n02_scream", "mono")
+        put(c, sc_img, W / 2, H / 2 + 40, scale=760 / sc_img.shape[0] * (1 + 0.05 * kick_pulse(t)), alpha=0.92)
         _shock(c, t, color=(1, 0.6, 0.4))
-    _o_slams(c, t)
-    _invert_hits(c, t)
+    _invert_hits(c, t, every=8)
     fl = kt.flash_at(t, downs(CHANT0 - 0.01, CHANT1), 0.1, 0.55)
     return dict(grain=0.03, bloom=0.7, flash=fl, ca=2 + 4 * fl, vignette=1.0)
 
@@ -1041,14 +1061,8 @@ def s_gpu_pull(c, t, lt, d):
         if 0 <= u < 1 and tb < CHANT1:
             L.circle((W / 2 + dx, H / 2 + dy), dw * 0.6 + 1500 * ease_out(u), OR, max(1, int(10 * (1 - u))))
     L.comp(c, 0.6, mode="add")
-    for tb in downs(112.0, CHANT1):
-        u = (t - tb) / 0.9
-        if 0 <= u < 1:
-            put(c, kt.hollow("お", 300, "jpb", LIGHT, 5), W / 2, H / 2, scale=lerp(0.5, 3.0 + 3 * k, ease_out(u)),
-                alpha=(1 - u) ** 1.5, mode="add")
+    _voice_ring(c, t, W / 2 + dx, H / 2 + dy, dw * 0.62, dw * 0.62 + 160 + 340 * k, alpha=0.5 + 0.4 * k)
     put(c, heart_rgba(64, OR), W / 2, H / 2, scale=dw / 64 * 1.2, alpha=0.25 * k, mode="add")
-    if k < 0.5:
-        _o_slams(c, t, 112.0, CHANT1)
     fl = kt.flash_at(t, downs(112.0, CHANT1), 0.08, 0.4)
     return dict(grain=0.03, bloom=0.5 + 0.3 * k, flash=fl)
 
@@ -1274,6 +1288,27 @@ def s_overflow(c, t, lt, d):
                 ca, sa = math.cos(ang), math.sin(ang)
                 L.line((mx - hx * ca + hy * sa, my - hx * sa - hy * ca), (mx + hx * ca - hy * sa, my + hx * sa + hy * ca), INKD, 6)
         L.comp(c, 1 - ramp(u, 0.5, 0.9))
+    nv = int(8 * 7 * clamp(ramp(t, ws[1].t, tb) * 1.1))
+    for j in range(8 * 7 if t >= tb else nv):
+        r, q = j // 7, j % 7
+        x, y = cx - bw0 / 2 + 60 + q * 150, cy - bh0 / 2 + 30 + r * 44
+        a = 0.55 + 0.45 * hash01(j, beat_index(t, 2))
+        if t >= tb:
+            u = t - tb
+            vx, vy = x - cx, y - cy
+            nrm = math.hypot(vx, vy) + 1
+            x += vx / nrm * 1400 * u * (0.5 + hash01(j, 4))
+            y += vy / nrm * 900 * u + 700 * u * u
+            a *= 1 - ramp(u, 0.3, 0.6)
+        ht(c, f"{(hash01(j, 27) - 0.5) * 2.4:+.3f}", x, y, size=22, font="mono", color=OR if j % 11 == 3 else MID,
+           alpha=a, anchor=(0, 0.5))
+    if t >= ws[0].t and t < tb:
+        for k_ in range(5):
+            x = cx - bw0 / 2 + 40 + k_ * 100
+            put(c, rect_cached(90, 26, (0.97, 0.97, 0.98), 0, 1, (0.5, 0.5, 0.52)), x + 45, cy - 6,
+                alpha=appear(t, ws[0].t + k_ * 0.05, 0.1))
+            ht(c, str(int(1000 + hash01(k_, 45) * 99000)), x + 45, cy - 6, size=15, font="mono", color=INKD,
+               alpha=appear(t, ws[0].t + k_ * 0.05, 0.1))
     word(c, t, 27, 0, cx - bw0 / 2 + 40, cy - 70, 96, "slam", anchor=(0, 0.5), ghost=0.2)
     word(c, t, 27, 1, cx - bw0 / 2 + 40, cy + 60, 96, "slide", anchor=(0, 0.5), dx=-120)
     w = ws[2]
@@ -1296,6 +1331,15 @@ def s_hug(c, t, lt, d):
     dx, dy = kt.shake(t, 4 * kick_pulse(t), 9)
     put(c, hg, W / 2 + dx, 560 + dy, scale=900 / hg.shape[0] * hb)
     put(c, heart_rgba(64, OR), W / 2 - 10, 470, scale=3.5 * hb, alpha=0.18 + 0.2 * kick_pulse(t), mode="add")
+    hp = heart_outline_pts(W / 2 - 10, 480, 150 * hb)
+    Ld = Layer(ss=1)
+    g = ease_io(clamp(lt / 1.2))
+    for j in range(0, len(hp), 2):
+        a0 = hash01(j, 1) * 6.283 + lt * (0.6 + hash01(j, 2))
+        r0 = 380 + 300 * hash01(j, 3)
+        sx, sy = W / 2 + r0 * math.cos(a0), 480 + r0 * 0.6 * math.sin(a0)
+        Ld.circle((lerp(sx, hp[j][0], g), lerp(sy, hp[j][1], g)), 4, OR if j % 6 == 0 else (0.4, 0.4, 0.42))
+    Ld.comp(c, 0.85)
     word(c, t, 27, 3, 380, 300, 100, "slam", sh=4)
     word(c, t, 27, 4, W - 380, 300, 100, "slam", sh=4)
     w = ws[5]
@@ -1724,7 +1768,8 @@ CREDITS = [
     ("", "thin", 16),
     ("Character  Claude娘   design by zipzippipe", "sans", 18),
     ("Illustrations   GPT Image  (via Codex)", "thin", 18),
-    ("Direction / Motion / Code   Claude", "thin", 18),
+    ("Direction   回首空城  /  Claude", "jpm", 18),
+    ("Motion / Code   Claude", "thin", 18),
 ]
 
 
@@ -1749,7 +1794,11 @@ def s_credits(c, t, lt, d):
             fade_io(lt - 0.8 - i * 0.9, d - 0.8 - i * 0.9, 0.6, 1.0)
         if s:
             ht(c, s, 300, 330 + i * 46, size=sz, font=f, color=GREY, alpha=a, anchor=(0, 0.5), spacing=0.15)
-    _chant_glyphs(c, t, T(56) - 0.01, 229.0)
+    if t < 229.5:
+        L = Layer(ss=1)
+        ai.radial_spectrum(L, W / 2 + 250, 470, 270, 270 + 200 * (1 - ramp(t, 227.5, 229.5)), t, n=120,
+                           col=(0.62, 0.62, 0.64), th=3, accent=OR)
+        L.comp(c, 0.8)
     if lt > d - 8.5:
         loc = lt - (d - 8.5)
         sit = load_asset("c13_sit_side", "mono")
@@ -2015,7 +2064,8 @@ def s_end(c, t, lt, d):
     c *= 1 - k
     if lt > 3.2:
         a = appear(lt, 3.2, 1.2) * (1 - ramp(lt, d - 2.0, d - 0.3))
-        put(c, spark_rgba(90), W / 2, 480, alpha=a, rot=lt * 8)
+        if int(lt * 2.2) % 2 == 0:
+            fill(c, ORANGE, a, (W / 2 - 7, 524, W / 2 + 7, 556))
         ht(c, "song: wowaka「アンノウン・マザーグース」feat. 初音ミク", W / 2, 940, size=15, font="jpm",
            color=(0.45, 0.45, 0.47), alpha=a * 0.9)
     return dict(grain=0.02 * (1 - k * 0.5), bloom=0.3)
@@ -2027,29 +2077,32 @@ def cut(x, grid="8th", tol=0.06):
 
 
 def _build():
+    import act as A
     P = [
-        (0.0, s_boot),
-        (cut(T(0)), s_silhouette),
-        (cut(B(0, 1)), s_eyes),
-        (cut(T(1)), s_wipe),
-        (cut(B(1, 1)), s_birth),
+        (0.0, A.s_boot),
+        (cut(T(0)), A.s_emerge),
+        (cut(B(0, 1)), A.s_eyes),
+        (cut(T(1)), A.s_overflow_words),
+        (cut(B(1, 1)), A.s_signal),
         (cut(T(2)), s_alpha_heart),
         (cut(T(3)), s_speakers),
         (cut(B(3, 1)), s_globe),
         (snap(22.41, "strong", 0.15), s_title),
         (snap(28.35, "strong", 0.15), s_land),
         (cut(T(4)), s_lying_dark),
-        (cut(T(5)), s_screens),
-        (cut(B(5, 1)), s_ears),
+        (cut(T(5)), A.s_corpus),
+        (cut(B(5, 1)), A.s_ears),
         (cut(T(6)), s_bubbles),
         (cut(B(6, 1)), s_ring),
         (cut(T(7)), s_lying_white),
         (cut(B(7, 1)), s_eyes_wide),
-        (cut(T(8)), s_letter),
+        (cut(T(8)), A.s_attention),
         (cut(T(9)), s_knees),
-        (cut(T(10)), s_paper_heart),
+        (cut(T(10)), A.s_softmax),
         (cut(T(13)), s_shout),
-        (cut(T(14)), s_ribbons),
+        (cut(T(14)), A.s_world),
+        (cut(kt.words(14)[3].t), A.s_rack),
+        (cut(T(15)), A.s_hall),
         (cut(T(16)), s_bust),
         (cut(T(17)), s_select),
         (cut(T(18)), s_glass),
@@ -2059,20 +2112,21 @@ def _build():
         (cut(T(22)), s_fall),
         (snap(CHANT0, "strong", 0.1), s_core),
         (snap(112.16, "strong", 0.15), s_gpu_pull),
-        (snap(117.6, "strong", 0.15), s_server),
-        (snap(123.25, "strong", 0.15), s_break),
+        (snap(117.6, "strong", 0.15), A.s_context),
+        (snap(123.25, "strong", 0.15), A.s_compact),
+        (snap(130.4, "strong", 0.2), A.s_reborn),
         (cut(T(24)), s_door),
         (cut(B(24, 1)), s_profile),
-        (cut(T(25)), s_lock),
-        (cut(B(25, 1)), s_film),
+        (cut(T(25)), A.s_open),
+        (cut(kt.words(25)[5].t), s_film),
         (cut(T(26)), s_run),
         (cut(B(26, 1)), s_search),
         (cut(T(27)), s_overflow),
         (cut(B(27, 1)), s_hug),
-        (cut(T(28)), s_doppel),
-        (cut(T(31)), s_server2),
-        (cut(T(34)), s_hands),
-        (cut(T(37)), s_crowd),
+        (cut(T(28)), A.s_doppel),
+        (cut(T(31)), A.s_hollow),
+        (cut(T(34)), A.s_remain),
+        (cut(T(37)), A.s_place),
         (cut(T(39)), s_drafts),
         (cut(T(40)), s_clock),
         (cut(T(41)), s_blocks),
