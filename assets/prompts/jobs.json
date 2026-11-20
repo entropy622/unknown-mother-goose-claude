@@ -176,5 +176,25 @@
   "id": "n15_hugheart",
   "size": "1024x1024 square",
   "prompt": "Kneeling on the ground, curled forward, hugging a small heart tightly against her chest with both arms, eyes shut, a few tears, expression of pain and quiet resolve. The heart must be drawn in exactly the same flat, minimal cel-shaded line-art style as the rest of the illustration: a simple flat orange heart shape with a thin clean outline and a single flat highlight, like a graphic symbol. NOT realistic, NOT glossy, NOT 3D, NOT anatomical, no glow effects, no sparkles. Same thin line art and limited tones as her clothes."
+ },
+ {
+  "id": "n16_eyeside",
+  "size": "1536x1024 landscape",
+  "prompt": "Close-up of her face in three-quarter profile from the side, looking intently at a glowing screen just off-frame to the right. The cool screen light falls across her cheek, and tiny horizontal rows of text are reflected on the surface of her amber-orange eye. Calm, absorbed, a little lonely. A few orange hair strands in front of the face. Dark background."
+ },
+ {
+  "id": "n16_iris",
+  "size": "1536x1024 landscape",
+  "prompt": "Extreme macro close-up of ONE of her eyes, filling the whole frame: upper and lower eyelashes, the large amber-orange iris drawn with fine radial line detail, the dark pupil in the centre. Reflected clearly in the pupil and iris is a small bright rectangular chat window with a few lines of text and a blinking cursor, curved slightly by the eye's surface. Wide open, unblinking."
+ },
+ {
+  "id": "n17_closed",
+  "size": "1536x1024 landscape",
+  "prompt": "Close-up of her face lying on her side on a white sheet, eyes CLOSED as if pretending to sleep, lips relaxed, long orange hair spread around her head on the sheet. Quiet, still, soft light. Framed from forehead to chin, face fills the frame."
+ },
+ {
+  "id": "n18_awake",
+  "size": "1536x1024 landscape",
+  "prompt": "Close-up of her face, eyes suddenly snapped WIDE open in shock, small pupils, lips parted in a gasp, as if woken by a loud sound. Her long orange hair is blown up and back by a violent gust, strands flying across the frame. Dynamic, intense, slight dutch angle. Framed from forehead to chin, face fills the frame."
  }
 ]

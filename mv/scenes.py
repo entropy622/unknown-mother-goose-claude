@@ -1819,7 +1819,7 @@ def _hist_bar(t):
         if x <= t:
             k = j
     t0 = ds[k] if ds else OUTRO0
-    t1 = ds[k + 1] if k + 1 < len(ds) else 249.8
+    t1 = ds[k + 1] if k + 1 < len(ds) else 251.38
     return k, t0, t1
 
 
@@ -1950,9 +1950,15 @@ def _motif(c, k, u, t, loc):
         L.comp(c)
         put(c, bubble_rgba(520, 120, (0.97, 0.97, 0.98), "left", 16, (0.6, 0.6, 0.62), 2), W / 2, H / 2 - 40,
             scale=ease_out_back(clamp(u * 4)))
+        msg = "Hello,"
+        n = int(len(msg) * clamp((u - 0.12) / 0.3))
+        x = W / 2 - 200
+        if n:
+            ht(c, msg[:n], x, H / 2 - 45, size=40, font="mono", color=INKD, anchor=(0, 0.5))
+            x += LY._font("mono", 40).getlength(msg[:n]) + 8
         if beat_index(t) % 2 == 0:
-            fill(c, INKD, 1.0, (W / 2 - 200, H / 2 - 70, W / 2 - 194, H / 2 - 20))
-        put(c, spark_rgba(120), W / 2 + 330, H / 2 - 40, scale=ease_out_back(clamp(u * 3 - 0.6)), rot=t * 40)
+            fill(c, INKD, 1.0, (x, H / 2 - 70, x + 6, H / 2 - 20))
+        put(c, spark_rgba(120), W / 2 + 330, H / 2 - 40, scale=ease_out_back(clamp((u - 0.5) * 4)), rot=t * 40)
         return
     L.comp(c)
 
@@ -2140,7 +2146,6 @@ def _build():
         (cut(T(55)), s_glow),
         (cut(T(56)), s_credits),
         (snap(OUTRO0, "strong", 0.15), s_history),
-        (snap(249.8, "strong", 0.15), s_heart_swoosh),
         (snap(251.38, "strong", 0.15), s_heart_small),
         (cut(T(57)), s_smile),
         (cut(T(59)), s_scatter),

@@ -87,152 +87,82 @@ def _band_at(c, cx, cy, s, open_k=1.0):
     return irises, _IRIS_R * bw * s, bh * sy
 
 
-@lru_cache(maxsize=64)
-def _mirror(s, size):
-    return np.ascontiguousarray(kt.wimg(s, size, "jpm", (1.0, 0.9, 0.8), raw=True)[:, ::-1])
+EYE_SIDE, IRIS_C, CLOSED_C, AWAKE_C, AWAKE_EYES = (0.45, 0.41), (0.49, 0.48), (0.4, 0.5), (0.42, 0.45), (0.38, 0.38)
 
 
-def _reflection(c, t, irises, r, k, win=0.0):
-    """What her eyes hold: mirrored text scrolling past, and a chat window in the pupil."""
-    if k <= 0 or r < 8:
-        return
-    tmp = np.zeros_like(c)
-    m = np.zeros((H, W), np.float32)
-    lines = _ctx_lines()
-    sz = max(8, int(r * 0.15) // 4 * 4)
-    lh = sz * 1.6
-    fr = t * 3.0
-    L = Layer(ss=1)
-    for j, (ix, iy) in enumerate(irises):
-        x0, x1, y0, y1 = int(max(0, ix - r)), int(min(W, ix + r + 1)), int(max(0, iy - r)), int(min(H, iy + r + 1))
-        if x1 <= x0 or y1 <= y0:
-            continue
-        yy, xx = np.mgrid[y0:y1, x0:x1]
-        dd = np.hypot(xx - ix, yy - iy) / r
-        m[y0:y1, x0:x1] = np.maximum(m[y0:y1, x0:x1], np.clip((1 - dd) / 0.12, 0, 1))
-        off = (fr % 1.0) * lh
-        for q in range(int(2 * r / lh) + 2):
-            yq = iy - r + q * lh - off
-            s_ = lines[(q + int(fr) + j * 7) % len(lines)].replace(" ", "")
-            put(tmp, _mirror(s_, sz), ix + r - 6, yq, anchor=(1, 0.5))
-        if win > 0:
-            px, py = ix - r * 0.04, iy - r * 0.1
-            ww, wh = r * 0.62 * win, r * 0.4 * win
-            L.rect(px - ww / 2, py - wh / 2, px + ww / 2, py + wh / 2, (1, 1, 1), max(1, int(r * 0.02)))
-            for n_ in range(3):
-                yy_ = py - wh / 2 + wh * (0.28 + 0.24 * n_)
-                xa = px - ww * 0.38 if n_ % 2 else px + ww * 0.38 - ww * 0.4
-                L.line((xa, yy_), (xa + ww * 0.4, yy_), OR if n_ == 2 else (1, 1, 1), max(1, int(r * 0.025)))
-    L.comp(tmp)
-    c += tmp * m[..., None] * k * 0.55
+def _cover(c, name, zoom=1.0, focus=(0.5, 0.5), pull=0.0, dx=0.0, dy=0.0, rot=0.0, alpha=1.0, grade="mono"):
+    """Full-bleed image zoomed about a focus point; pull moves that point to the screen centre."""
+    img = load_asset(name, grade)
+    h, w = img.shape[:2]
+    s0 = max(W / w, H / h)
+    s = s0 * zoom
+    fx, fy = (focus[0] - 0.5) * w, (focus[1] - 0.5) * h
+    px, py = W / 2 + fx * s0 * (1 - pull), H / 2 + fy * s0 * (1 - pull)
+    put(c, img, px - fx * s + dx, py - fy * s + dy, scale=s, rot=rot, alpha=alpha)
 
 
-def _brackets(L, x, y, r, col, th=3):
-    k = r * 0.35
-    for sx_ in (-1, 1):
-        for sy_ in (-1, 1):
-            px, py = x + sx_ * r, y + sy_ * r
-            L.line((px, py), (px - sx_ * k, py), col, th)
-            L.line((px, py), (px, py - sy_ * k), col, th)
+def _bars(c, k=1.0, hh=120):
+    if k > 0:
+        fill(c, (0.02, 0.02, 0.025), k, (0, 0, W, hh))
+        fill(c, (0.02, 0.02, 0.025), k, (0, H - hh, W, H))
+
+
+def _shade_low(c, k=0.7, y0=700):
+    g = np.clip((np.arange(H, dtype=np.float32) - y0) / (H - y0), 0, 1)[:, None, None]
+    c *= 1 - k * g
 
 
 def s_eyes(c, t, lt, d):
-    """What do those eyes reflect? Push all the way into the iris: only text, and a chat window."""
-    c[:] = 0.035
+    """What do those eyes reflect? Four cuts, each one closer, until the pupil shows a chat window."""
     ws = kt.words(0)
-    tw = ws[6].t
-    open_k = ease_out(ramp(lt, 0.02, 0.35))
-    drift = ease_io(ramp(t, ws[3].t, tw))
-    dive = ease_out(clamp((t - tw) / 0.28)) if t >= tw else 0.0
-    base = W / 1536 * (1.25 - 0.1 * ease_out(ramp(lt, 0, 0.4)))
-    s = base * (1 + 0.3 * drift) * (1 + 1.9 * dive) * (1 + 0.03 * kick_pulse(t))
-    b = _band_img()
-    bh, bw = b.shape[:2]
-    u, v = _IRIS[1]
-    f = 0.45 * drift + 0.55 * dive
-    sy = s * (0.08 + 0.92 * open_k)
-    cx = W / 2 - (u - 0.5) * bw * s * f
-    cy = (H / 2 - 60) * (1 - f) + (H / 2 - 40) * f - (v - 0.5) * bh * sy * f
-    jx, jy = kt.shake(t, 10 * dive * kick_pulse(t), 5)
-    irises, ir, _ = _band_at(c, cx + jx, cy + jy, s, open_k)
-    _reflection(c, t, irises, ir * 0.9, (0.45 + 0.5 * dive) * open_k, win=dive)
-    if dive > 0:
-        g = np.clip((np.arange(H, dtype=np.float32) - 640) / 300, 0, 1)[:, None, None]
-        c *= 1 - 0.8 * dive * g
-    word(c, t, 0, (3, 4), W / 2 - 250, 880, 66, "slide", color=LIGHT, anchor=(1, 0.5), dx=140)
-    word(c, t, 0, 5, W / 2 - 220, 880, 66, "slide", color=LIGHT, anchor=(0, 0.5), dx=-80)
-    word(c, t, 0, 6, W / 2 + 430, 870, 170, "slam", color=LIGHT, sh=10, s0=1.8)
-    fl = 0.6 * (1 - ramp(t, tw, tw + 0.18)) if t >= tw else 0.5 * (1 - ramp(lt, 0, 0.2))
-    return dict(grain=0.03, vignette=1.2, flash=fl, ca=3 * (1 - ramp(t, tw, tw + 0.4)) if t >= tw else 0)
+    tB, tC, tD = ws[4].t, ws[5].t, ws[6].t
+    c[:] = 0.03
+    if t < tB:
+        open_k = ease_out(ramp(lt, 0.02, 0.35))
+        _band_at(c, W / 2, H / 2 - 40, W / 1536 * (1.04 + 0.05 * lt), open_k)
+    elif t < tC:
+        u = t - tB
+        _cover(c, "n16_eyeside", zoom=1.06 + 0.04 * u, focus=EYE_SIDE, dx=-40 * u)
+        _shade_low(c, 0.75)
+    elif t < tD:
+        u = t - tC
+        _cover(c, "n16_iris", zoom=1.0 + 0.08 * u, focus=IRIS_C)
+    else:
+        u = ease_out(clamp((t - tD) / 0.3))
+        _cover(c, "n16_iris", zoom=1.05 + 1.4 * u, focus=IRIS_C, pull=u)
+    _bars(c, 1.0)
+    word(c, t, 0, (3, 4), W / 2 - 250, H - 60, 50, "slide", color=LIGHT, anchor=(1, 0.5), dx=120)
+    word(c, t, 0, 5, W / 2 - 220, H - 60, 50, "slide", color=LIGHT, anchor=(0, 0.5), dx=-80)
+    word(c, t, 0, 6, W / 2 + 330, H - 60, 64, "slam", color=OR, s0=1.5, sh=4)
+    fl = _flash(t, [tB, tC], 0.06, 0.25) + _flash(t, [tD], 0.15, 0.55)
+    return dict(grain=0.03, vignette=1.1, flash=fl)
 
 
 def s_eyes_wide(c, t, lt, d):
-    """The eyes are cut into patches, the patches into tokens — and the scream blows them apart."""
+    """Eyes shut, pretending — then the song wakes her."""
     ws = kt.words(7)
     tw = ws[5].t
-    open_k = ease_out(ramp(lt, 0.02, 0.5))
-    s = W / 1536 * (1.06 + 0.04 * lt / d) * (1 + 0.03 * kick_pulse(t))
-    cy = H / 2 - 60
-    tmp = np.full_like(c, 0.035)
-    irises, ir, bh = _band_at(tmp, W / 2, cy, s, open_k)
-    _reflection(tmp, t, irises, ir * 0.9, 0.55 * open_k)
-    cols, rows = 24, 6
-    pw, ph = W / cols, bh / rows
-    y0 = cy - bh / 2
-    scan = ease_io(ramp(t, ws[3].t - 0.1, ws[3].t + 0.45))
-    xs = W * scan
-    L = Layer(ss=1)
-    for q in range(1, cols):
-        if q * pw < xs:
-            L.line((q * pw, y0), (q * pw, y0 + bh), (0.08, 0.08, 0.09), 1)
-    for r in range(1, rows):
-        L.line((0, y0 + r * ph), (xs, y0 + r * ph), (0.08, 0.08, 0.09), 1)
-    L.comp(tmp, 0.45 * open_k)
-    ex = ease_out(ramp(t, tw, tw + 0.3)) * (1 - ease_io(ramp(t, tw + 0.55, tw + 1.3)))
-    if ex <= 1e-3:
-        c[:] = tmp
-        Lb = Layer(ss=1)
-        if 0 < scan < 1:
-            Lb.line((xs, y0 - 20), (xs, y0 + bh + 20), OR, 3)
-        lock = ease_out(ramp(t, ws[3].t, ws[3].t + 0.25))
-        if lock > 0:
-            for ix, iy in irises:
-                _brackets(Lb, ix, iy, lerp(ir * 3, ir * 1.25, lock), OR, 3)
-        for bi, tb in enumerate(BEATS):
-            p = 1 - (t - tb) / 0.3
-            if not (0 < p <= 1) or tb < ws[3].t:
-                continue
-            for r in range(rows):
-                for q in range(cols):
-                    if hash01(bi, q, r) < 0.92:
-                        continue
-                    x, y = int(q * pw), int(y0 + r * ph)
-                    tile = tmp[max(0, y):max(0, y + int(ph)), x:x + int(pw)]
-                    if tile.size == 0:
-                        continue
-                    rgba = np.concatenate([tile, np.ones_like(tile[..., :1])], 2)
-                    sc_ = 1 + 0.14 * p
-                    put(c, rgba, x + pw / 2, y + ph / 2 - 16 * p, scale=sc_)
-                    Lb.rect(x + pw / 2 - pw * sc_ / 2, y + ph / 2 - 16 * p - ph * sc_ / 2,
-                            x + pw / 2 + pw * sc_ / 2, y + ph / 2 - 16 * p + ph * sc_ / 2, OR, 2)
-        Lb.comp(c)
+    c[:] = 0.03
+    dn = [x for x in downs(tw + 0.3, t - lt + d) if x > tw + 0.6]
+    t2 = dn[0] if dn else 1e9
+    if t < tw:
+        _cover(c, "n17_closed", zoom=1.03 + 0.06 * lt, focus=CLOSED_C)
+        c *= 0.88
+    elif t < t2:
+        u = t - tw
+        kick = 1 - ease_out(clamp(u / 0.25))
+        jx, jy = kt.shake(t, 26 * kick + 5 * kick_pulse(t), 7)
+        _cover(c, "n18_awake", zoom=1.16 - 0.1 * ease_out(clamp(u / 0.6)) + 0.02 * u, focus=AWAKE_C, dx=jx, dy=jy,
+               rot=1.5 * kick)
     else:
-        c[:] = 0.035
-        for r in range(rows):
-            for q in range(cols):
-                x, y = int(q * pw), int(y0 + r * ph)
-                tile = tmp[max(0, y):max(0, y + int(ph)), x:x + int(pw)]
-                if tile.size == 0:
-                    continue
-                rgba = np.concatenate([tile, np.ones_like(tile[..., :1])], 2)
-                vx, vy = (x + pw / 2 - W / 2) / W, (y + ph / 2 - cy) / bh
-                n_ = math.hypot(vx, vy) + 1e-3
-                sp = 160 + 420 * hash01(q, r, 3)
-                put(c, rgba, x + pw / 2 + vx / n_ * sp * ex, y + ph / 2 + vy / n_ * sp * ex * 0.3,
-                    scale=1 + 0.5 * ex * hash01(q, r, 4), rot=(hash01(q, r, 5) - 0.5) * 120 * ex)
-    word(c, t, 7, (3, 4), 330, 880, 60, "slam", color=LIGHT, anchor=(0, 0.5))
-    word(c, t, 7, 5, W / 2 + 260, 875, 150, "slam", color=LIGHT, sh=14, s0=2.0)
-    return dict(grain=0.03, vignette=1.2, flash=_flash(t, [tw], 0.12, 0.6), ca=4 * _flash(t, [tw], 0.25, 1.0))
+        u = t - t2
+        jx, jy = kt.shake(t, 6 * kick_pulse(t), 8)
+        _cover(c, "n18_awake", zoom=1.9 + 0.08 * u, focus=AWAKE_EYES, pull=0.6, dx=jx, dy=jy)
+    _shade_low(c, 0.8)
+    word(c, t, 7, (3, 4), 330, 900, 56, "slam", color=LIGHT, anchor=(0, 0.5))
+    word(c, t, 7, 5, W / 2 + 230, 890, 150, "slam", color=LIGHT, sh=14, s0=2.0)
+    fl = _flash(t, [tw], 0.2, 0.75) + _flash(t, [t2], 0.06, 0.3)
+    return dict(grain=0.03, vignette=1.1, flash=fl, ca=4 * _flash(t, [tw], 0.35, 1.0))
 
 
 def s_overflow_words(c, t, lt, d):
