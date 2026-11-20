@@ -20,7 +20,7 @@ Everything is rendered procedurally in Python (numpy / OpenCV / PIL → ffmpeg).
 
 The song audio and lyrics are not distributed. With your own copy:
 
-1. put the album track at `audio/album.wav`, run `tools/beats.py` and `tools/lyrics.py` (needs an `.lrc`) to produce `audio/album_padded.wav` and `audio/lyrics.json`
+1. put the album track at `audio/album.wav`, run `tools/beats.py`, `tools/separate.py`, `tools/lyrics.py` (needs an `.lrc`) and `tools/spectral.py` to produce `audio/album_padded.wav`, `audio/lyrics.json` and `audio/spectral.npz`
 2. `cd mv`
    - `python render.py times NAME t1 t2 ...` — contact sheet of single frames
    - `python render.py clip NAME t0 t1` — quick 540p preview clip with audio

@@ -445,7 +445,7 @@ def s_rack(c, t, lt, d):
     if t >= w.t:
         kt.slam(c, kt.hollow(w.s, 340, "jpb", OR, 6), 1580, 640, t, w.t, s0=1.8)
         put(c, kt.wimg(w.s, 340, "jpb", OR), 1580, 640, alpha=0.35 + 0.45 * e)
-    word(c, t, 14, 6, 1080, 110, 70, "wipe", color=LIGHT, v=True, anchor=(0.5, 0.0), dur=0.7, **STK)
+    word(c, t, 14, 6, 1250, 110, 66, "wipe", color=LIGHT, v=True, anchor=(0.5, 0.0), dur=0.7, **STK)
     return dict(grain=0.035, bloom=0.6, vignette=1.0)
 
 
