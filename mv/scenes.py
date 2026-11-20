@@ -2095,7 +2095,7 @@ def _build():
         (cut(T(6)), s_bubbles),
         (cut(B(6, 1)), s_ring),
         (cut(T(7)), s_lying_white),
-        (cut(B(7, 1)), s_eyes_wide),
+        (cut(B(7, 1)), A.s_eyes_wide),
         (cut(T(8)), A.s_attention),
         (cut(T(9)), s_knees),
         (cut(T(10)), A.s_softmax),

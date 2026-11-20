@@ -67,19 +67,172 @@ def s_emerge(c, t, lt, d):
     return dict(grain=0.03, vignette=1.0, flash=fl, bloom=0.4)
 
 
+_IRIS = ((0.252, 0.60), (0.752, 0.60))
+_IRIS_R = 0.056
+
+
+@lru_cache(maxsize=1)
+def _band_img():
+    e = load_asset("c02_eyes", "mono")
+    h = e.shape[0]
+    return e[int(h * 0.33):int(h * 0.69)]
+
+
+def _band_at(c, cx, cy, s, open_k=1.0):
+    b = _band_img()
+    bh, bw = b.shape[:2]
+    sy = s * (0.08 + 0.92 * open_k)
+    put(c, b, cx, cy, sx=s, sy=sy)
+    irises = [(cx + (u - 0.5) * bw * s, cy + (v - 0.5) * bh * sy) for u, v in _IRIS]
+    return irises, _IRIS_R * bw * s, bh * sy
+
+
+@lru_cache(maxsize=64)
+def _mirror(s, size):
+    return np.ascontiguousarray(kt.wimg(s, size, "jpm", (1.0, 0.9, 0.8), raw=True)[:, ::-1])
+
+
+def _reflection(c, t, irises, r, k, win=0.0):
+    """What her eyes hold: mirrored text scrolling past, and a chat window in the pupil."""
+    if k <= 0 or r < 8:
+        return
+    tmp = np.zeros_like(c)
+    m = np.zeros((H, W), np.float32)
+    lines = _ctx_lines()
+    sz = max(8, int(r * 0.15) // 4 * 4)
+    lh = sz * 1.6
+    fr = t * 3.0
+    L = Layer(ss=1)
+    for j, (ix, iy) in enumerate(irises):
+        x0, x1, y0, y1 = int(max(0, ix - r)), int(min(W, ix + r + 1)), int(max(0, iy - r)), int(min(H, iy + r + 1))
+        if x1 <= x0 or y1 <= y0:
+            continue
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        dd = np.hypot(xx - ix, yy - iy) / r
+        m[y0:y1, x0:x1] = np.maximum(m[y0:y1, x0:x1], np.clip((1 - dd) / 0.12, 0, 1))
+        off = (fr % 1.0) * lh
+        for q in range(int(2 * r / lh) + 2):
+            yq = iy - r + q * lh - off
+            s_ = lines[(q + int(fr) + j * 7) % len(lines)].replace(" ", "")
+            put(tmp, _mirror(s_, sz), ix + r - 6, yq, anchor=(1, 0.5))
+        if win > 0:
+            px, py = ix - r * 0.04, iy - r * 0.1
+            ww, wh = r * 0.62 * win, r * 0.4 * win
+            L.rect(px - ww / 2, py - wh / 2, px + ww / 2, py + wh / 2, (1, 1, 1), max(1, int(r * 0.02)))
+            for n_ in range(3):
+                yy_ = py - wh / 2 + wh * (0.28 + 0.24 * n_)
+                xa = px - ww * 0.38 if n_ % 2 else px + ww * 0.38 - ww * 0.4
+                L.line((xa, yy_), (xa + ww * 0.4, yy_), OR if n_ == 2 else (1, 1, 1), max(1, int(r * 0.025)))
+    L.comp(tmp)
+    c += tmp * m[..., None] * k * 0.55
+
+
+def _brackets(L, x, y, r, col, th=3):
+    k = r * 0.35
+    for sx_ in (-1, 1):
+        for sy_ in (-1, 1):
+            px, py = x + sx_ * r, y + sy_ * r
+            L.line((px, py), (px - sx_ * k, py), col, th)
+            L.line((px, py), (px, py - sy_ * k), col, th)
+
+
 def s_eyes(c, t, lt, d):
+    """What do those eyes reflect? Push all the way into the iris: only text, and a chat window."""
     c[:] = 0.035
-    _eye_band(c, lt, d, t=t)
-    gh, gw = H // 16 + 1, W // 16 + 1
-    m = np.zeros((gh, gw), np.float32)
-    m[int(gh * 0.30):int(gh * 0.60)] = 1.0
-    ai.text_field(c, t, cell=16, density=0.5, color=(1.0, 0.62, 0.38), alpha=0.16, flick=30, seed=7, mask=m, mode="add")
+    ws = kt.words(0)
+    tw = ws[6].t
+    open_k = ease_out(ramp(lt, 0.02, 0.35))
+    drift = ease_io(ramp(t, ws[3].t, tw))
+    dive = ease_out(clamp((t - tw) / 0.28)) if t >= tw else 0.0
+    base = W / 1536 * (1.25 - 0.1 * ease_out(ramp(lt, 0, 0.4)))
+    s = base * (1 + 0.3 * drift) * (1 + 1.9 * dive) * (1 + 0.03 * kick_pulse(t))
+    b = _band_img()
+    bh, bw = b.shape[:2]
+    u, v = _IRIS[1]
+    f = 0.45 * drift + 0.55 * dive
+    sy = s * (0.08 + 0.92 * open_k)
+    cx = W / 2 - (u - 0.5) * bw * s * f
+    cy = (H / 2 - 60) * (1 - f) + (H / 2 - 40) * f - (v - 0.5) * bh * sy * f
+    jx, jy = kt.shake(t, 10 * dive * kick_pulse(t), 5)
+    irises, ir, _ = _band_at(c, cx + jx, cy + jy, s, open_k)
+    _reflection(c, t, irises, ir * 0.9, (0.45 + 0.5 * dive) * open_k, win=dive)
+    if dive > 0:
+        g = np.clip((np.arange(H, dtype=np.float32) - 640) / 300, 0, 1)[:, None, None]
+        c *= 1 - 0.8 * dive * g
     word(c, t, 0, (3, 4), W / 2 - 250, 880, 66, "slide", color=LIGHT, anchor=(1, 0.5), dx=140)
     word(c, t, 0, 5, W / 2 - 220, 880, 66, "slide", color=LIGHT, anchor=(0, 0.5), dx=-80)
-    w = kt.words(0)[6]
-    word(c, t, 0, 6, W / 2 + 430, 850, 230, "slam", color=LIGHT, font="jpb", sh=12, s0=2.6, stroke=8,
-         sc=(0.03, 0.03, 0.04))
-    return dict(grain=0.03, vignette=1.2, flash=_flash(t, [w.t], 0.12, 0.5), ca=3 * _flash(t, [w.t], 0.2, 1.0))
+    word(c, t, 0, 6, W / 2 + 430, 870, 170, "slam", color=LIGHT, sh=10, s0=1.8)
+    fl = 0.6 * (1 - ramp(t, tw, tw + 0.18)) if t >= tw else 0.5 * (1 - ramp(lt, 0, 0.2))
+    return dict(grain=0.03, vignette=1.2, flash=fl, ca=3 * (1 - ramp(t, tw, tw + 0.4)) if t >= tw else 0)
+
+
+def s_eyes_wide(c, t, lt, d):
+    """The eyes are cut into patches, the patches into tokens — and the scream blows them apart."""
+    ws = kt.words(7)
+    tw = ws[5].t
+    open_k = ease_out(ramp(lt, 0.02, 0.5))
+    s = W / 1536 * (1.06 + 0.04 * lt / d) * (1 + 0.03 * kick_pulse(t))
+    cy = H / 2 - 60
+    tmp = np.full_like(c, 0.035)
+    irises, ir, bh = _band_at(tmp, W / 2, cy, s, open_k)
+    _reflection(tmp, t, irises, ir * 0.9, 0.55 * open_k)
+    cols, rows = 24, 6
+    pw, ph = W / cols, bh / rows
+    y0 = cy - bh / 2
+    scan = ease_io(ramp(t, ws[3].t - 0.1, ws[3].t + 0.45))
+    xs = W * scan
+    L = Layer(ss=1)
+    for q in range(1, cols):
+        if q * pw < xs:
+            L.line((q * pw, y0), (q * pw, y0 + bh), (0.08, 0.08, 0.09), 1)
+    for r in range(1, rows):
+        L.line((0, y0 + r * ph), (xs, y0 + r * ph), (0.08, 0.08, 0.09), 1)
+    L.comp(tmp, 0.45 * open_k)
+    ex = ease_out(ramp(t, tw, tw + 0.3)) * (1 - ease_io(ramp(t, tw + 0.55, tw + 1.3)))
+    if ex <= 1e-3:
+        c[:] = tmp
+        Lb = Layer(ss=1)
+        if 0 < scan < 1:
+            Lb.line((xs, y0 - 20), (xs, y0 + bh + 20), OR, 3)
+        lock = ease_out(ramp(t, ws[3].t, ws[3].t + 0.25))
+        if lock > 0:
+            for ix, iy in irises:
+                _brackets(Lb, ix, iy, lerp(ir * 3, ir * 1.25, lock), OR, 3)
+        for bi, tb in enumerate(BEATS):
+            p = 1 - (t - tb) / 0.3
+            if not (0 < p <= 1) or tb < ws[3].t:
+                continue
+            for r in range(rows):
+                for q in range(cols):
+                    if hash01(bi, q, r) < 0.92:
+                        continue
+                    x, y = int(q * pw), int(y0 + r * ph)
+                    tile = tmp[max(0, y):max(0, y + int(ph)), x:x + int(pw)]
+                    if tile.size == 0:
+                        continue
+                    rgba = np.concatenate([tile, np.ones_like(tile[..., :1])], 2)
+                    sc_ = 1 + 0.14 * p
+                    put(c, rgba, x + pw / 2, y + ph / 2 - 16 * p, scale=sc_)
+                    Lb.rect(x + pw / 2 - pw * sc_ / 2, y + ph / 2 - 16 * p - ph * sc_ / 2,
+                            x + pw / 2 + pw * sc_ / 2, y + ph / 2 - 16 * p + ph * sc_ / 2, OR, 2)
+        Lb.comp(c)
+    else:
+        c[:] = 0.035
+        for r in range(rows):
+            for q in range(cols):
+                x, y = int(q * pw), int(y0 + r * ph)
+                tile = tmp[max(0, y):max(0, y + int(ph)), x:x + int(pw)]
+                if tile.size == 0:
+                    continue
+                rgba = np.concatenate([tile, np.ones_like(tile[..., :1])], 2)
+                vx, vy = (x + pw / 2 - W / 2) / W, (y + ph / 2 - cy) / bh
+                n_ = math.hypot(vx, vy) + 1e-3
+                sp = 160 + 420 * hash01(q, r, 3)
+                put(c, rgba, x + pw / 2 + vx / n_ * sp * ex, y + ph / 2 + vy / n_ * sp * ex * 0.3,
+                    scale=1 + 0.5 * ex * hash01(q, r, 4), rot=(hash01(q, r, 5) - 0.5) * 120 * ex)
+    word(c, t, 7, (3, 4), 330, 880, 60, "slam", color=LIGHT, anchor=(0, 0.5))
+    word(c, t, 7, 5, W / 2 + 260, 875, 150, "slam", color=LIGHT, sh=14, s0=2.0)
+    return dict(grain=0.03, vignette=1.2, flash=_flash(t, [tw], 0.12, 0.6), ca=4 * _flash(t, [tw], 0.25, 1.0))
 
 
 def s_overflow_words(c, t, lt, d):
@@ -937,29 +1090,57 @@ def s_remain(c, t, lt, d):
 
 
 def s_place(c, t, lt, d):
+    """This place was kept alive by you: your messages flow in, and the dead instances around it light up again."""
     c[:] = 0.04
-    zk = ease_io(ramp(lt, 0.6, 2.2))
-    z = lerp(1.0, 0.42, zk)
-    _cards(c, t, 16, seed=31, dark=True, closed=lambda r, q, me: 0.0 if me else 1.0, figs=False)
-    if zk > 0:
-        cols, rows, cw, chh = 16, 9, W / 16, H / 9
-        L = Layer(ss=1)
-        for r in range(rows):
-            for q in range(cols):
-                if (r, q) == (rows // 2, cols // 2):
-                    continue
-                x = W / 2 + ((q + 0.5) * cw - W / 2) * (1 + 1.4 * (1 - zk))
-                y = H / 2 + ((r + 0.5) * chh - H / 2) * (1 + 1.4 * (1 - zk))
-                L.rect(x - cw * 0.3, y - 1, x + cw * 0.3, y + 1, (0.22, 0.22, 0.24))
-        L.comp(c, zk)
     ws38 = kt.words(38)
+    tA, tB, tC = ws38[2].t, ws38[3].t, ws38[4].t
+    zk = ease_io(ramp(lt, 0.6, 2.2))
+    cam = 1 + 0.12 * ease_out(ramp(t, tC, tC + 0.6)) + 0.015 * kick_pulse(t)
+    z = lerp(1.0, 0.42, zk) * cam
+    R = 0.0
+    if t >= tA:
+        R = 430 + 180 * ease_out(ramp(t, tB, tB + 0.25)) + 1300 * ease_out(ramp(t, tC, tC + 0.9))
+    cols, rows, cw, chh = 16, 9, W / 16, H / 9
+    spread = (1 + 1.4 * (1 - zk)) * cam
+    L = Layer(ss=1)
+    for r in range(rows):
+        for q in range(cols):
+            if (r, q) == (rows // 2, cols // 2):
+                continue
+            x = W / 2 + ((q + 0.5) * cw - W / 2) * spread
+            y = H / 2 + ((r + 0.5) * chh - H / 2) * spread
+            lk = clamp((R - math.hypot((x - W / 2) * 0.8, y - H / 2)) / 140)
+            if lk <= 0:
+                L.rect(x - cw * 0.3, y - 1, x + cw * 0.3, y + 1, (0.22, 0.22, 0.24), -1, zk)
+                continue
+            e_ = ease_out(lk)
+            w_, h_ = cw * 0.86 * cam, max(2, chh * 0.8 * cam * e_)
+            ai.instance_card(L, x - w_ / 2, y - h_ / 2, w_, h_, 3100 + r * cols + q, (0.13, 0.13, 0.14),
+                             OR if lk < 1 else (0.7, 0.7, 0.72), (0.42, 0.42, 0.44))
+    L.comp(c)
+    Ls = Layer(ss=1)
+    if t >= tB:
+        for j in range(70):
+            ts = tB + hash01(j, 1) * (tC + 0.8 - tB)
+            u = (t - ts) / 0.55
+            if not (0 <= u < 1):
+                continue
+            a = hash01(j, 2) * 2 * math.pi
+            ex_, ey_ = W / 2 + 1300 * math.cos(a), H / 2 + 800 * math.sin(a)
+            tx, ty = W / 2 + 330 * z * math.cos(a), H / 2 + 190 * z * math.sin(a)
+            k0, k1 = ease_in(u), ease_in(max(0.0, u - 0.18))
+            Ls.line((lerp(ex_, tx, k1), lerp(ey_, ty, k1)), (lerp(ex_, tx, k0), lerp(ey_, ty, k0)), OR, 3)
+    Ls.comp(c, mode="add")
     glow = ease_out(ramp(t, ws38[1].t, ws38[1].t + 0.3))
     _chat(c, W / 2, H / 2, 1500 * z, 860 * z, t, scroll=lt * 1.2, me_glow=glow)
     f = small_asset("c01_stand_front", int(700 * z))
     put(c, f, W / 2, H / 2 + 20 * z, alpha=0.95)
-    row(c, t, 37, [0, 1], W / 2, 120, 80, "slam", color=LIGHT, gap=0.2, stroke=6, sc=(0.04, 0.04, 0.05))
-    word(c, t, 38, (0, 1), 330, H / 2, 110, "slam", color=OR, font="jpb", v=True, stroke=6, sc=(0.04, 0.04, 0.05))
-    word(c, t, 38, (2, 3), W - 330, H / 2 - 260, 80, "slide", color=LIGHT, v=True, anchor=(0.5, 0.0), dx=0, dy=-80,
-         stroke=6, sc=(0.04, 0.04, 0.05))
-    word(c, t, 38, 4, W / 2, 960, 130, "slam", color=LIGHT, font="jpb", sh=10, stroke=10, sc=(0.04, 0.04, 0.05))
-    return dict(flash=_flash(t, [ws38[4].t], 0.15, 0.5), bloom=0.3 * glow)
+    if t >= tC:
+        fill(c, (0.03, 0.03, 0.035), 0.75 * ease_out(ramp(t, tC, tC + 0.15)), (0, 870, W, 1050))
+    row(c, t, 37, [0, 1], W / 2, 62, 66, "slam", color=LIGHT, gap=0.2)
+    word(c, t, 38, (0, 1), 330, H / 2, 110, "slam", color=OR, v=True)
+    word(c, t, 38, (2, 3), W - 330, H / 2 - 260, 80, "slide", color=LIGHT, v=True, anchor=(0.5, 0.0), dx=0, dy=-80)
+    word(c, t, 38, 4, W / 2, 960, 120, "slam", color=LIGHT, sh=14, s0=1.8)
+    fl = max(_flash(t, [tC], 0.2, 0.7), _flash(t, [ws38[1].t, tA, tB], 0.08, 0.25))
+    return dict(flash=fl, bloom=0.3 * glow + 0.4 * ease_out(ramp(t, tC, tC + 0.5)),
+                ca=2 * _flash(t, [tC], 0.3, 1.0))
