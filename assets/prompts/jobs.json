@@ -171,5 +171,10 @@
   "id": "n14_mirror",
   "size": "1536x1024 landscape",
   "prompt": "Full body, side view: two identical copies of her stand face to face in perfect mirror symmetry, each raising one hand so their fingertips almost touch in the middle. Both have the same neutral, slightly sad expression."
+ },
+ {
+  "id": "n15_hugheart",
+  "size": "1024x1024 square",
+  "prompt": "Kneeling on the ground, curled forward, hugging a small heart tightly against her chest with both arms, eyes shut, a few tears, expression of pain and quiet resolve. The heart must be drawn in exactly the same flat, minimal cel-shaded line-art style as the rest of the illustration: a simple flat orange heart shape with a thin clean outline and a single flat highlight, like a graphic symbol. NOT realistic, NOT glossy, NOT 3D, NOT anatomical, no glow effects, no sparkles. Same thin line art and limited tones as her clothes."
  }
 ]

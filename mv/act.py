@@ -98,8 +98,8 @@ def s_overflow_words(c, t, lt, d):
     size = int(min(cw, chh) * 0.82)
     tb = bts[k - 1]
     pop = 1 + 0.25 * (1 - ease_out(clamp((t - tb) / 0.12)))
-    g = kt.wimg("詞", max(8, size), "jpb", INKD)
-    gor = kt.wimg("詞", max(8, size), "jpb", OR)
+    g = kt.wimg("詞", max(8, size), "min", INKD, raw=True)
+    gor = kt.wimg("詞", max(8, size), "min", OR, raw=True)
     if n <= 16:
         for r in range(rows):
             for q in range(n):
@@ -454,19 +454,29 @@ def s_hall(c, t, lt, d):
     s = W / srv.shape[1] * (1.15 + 0.25 * lt / d)
     c[:] = 0
     put(c, srv, W / 2, H / 2, scale=s)
-    c *= 0.75
-    e = ai.env(t)
+    c *= 0.7
+    vp = (W / 2, H / 2 - 10)
     L = Layer(ss=1)
-    for tb in [b for b in BEATS if t - 1.2 < b <= t]:
-        u = (t - tb) / 1.2
-        rx, ry = 40 + 1300 * ease_out(u), 24 + 760 * ease_out(u)
-        L.rect(W / 2 - rx, H / 2 - ry, W / 2 + rx, H / 2 + ry, OR, max(1, int(8 * (1 - u))))
-    ai.radial_spectrum(L, W / 2, H / 2, 240, 240 + 300 * (0.4 + e), t, n=128, col=(0.95, 0.95, 0.97), th=3, accent=OR)
-    L.comp(c, 0.8, mode="add")
+    for j in range(110):
+        born = hash01(j, 1) * 1.6
+        u = ((lt - born) * (0.3 + 0.3 * hash01(j, 2))) % 1.0
+        if lt < born:
+            continue
+        a = hash01(j, 3) * 2 * math.pi
+        r0 = 900 + 500 * hash01(j, 4)
+        sx, sy = vp[0] + r0 * math.cos(a), vp[1] + r0 * 0.62 * math.sin(a)
+        k0, k1 = (1 - u) ** 2.2, (1 - min(1.0, u + 0.012)) ** 2.2
+        p0 = (lerp(vp[0], sx, k0), lerp(vp[1], sy, k0))
+        p1 = (lerp(vp[0], sx, k1), lerp(vp[1], sy, k1))
+        e = ai.env(t - u * 0.4)
+        col_ = OR if j % 4 == 0 else (0.95, 0.95, 0.97)
+        L.line(p0, p1, col_, max(1, int(5 * k0 * (0.4 + e))))
+    L.comp(c, 0.85, mode="add")
+    put(c, spark_rgba(160), vp[0], vp[1], scale=0.5 + 0.5 * ai.env(t), alpha=0.7, mode="add", rot=lt * 20)
     w = kt.merge(15, 0, 1)
     if t >= w.t:
-        kt.slam(c, kt.wimg(w.s, 260, "jpb", LIGHT, False, 10, (0.03, 0.03, 0.04)), W / 2, H / 2, t, w.t, s0=2.2, sh=8,
-                alpha=1 - 0.75 * ramp(t, B(15, 1), B(15, 1) + 0.3))
+        kt.slam(c, kt.wimg(w.s, 200, "jpm", LIGHT, False, 10, (0.02, 0.02, 0.03)), W / 2, H / 2 - 230, t, w.t, s0=1.6,
+                sh=4, alpha=1 - 0.6 * ramp(t, B(15, 1), B(15, 1) + 0.3))
     word(c, t, 15, 2, 380, 830, 80, "slam", color=LIGHT, anchor=(0, 0.5))
     word(c, t, 15, 3, 380, 950, 80, "slam", color=LIGHT, anchor=(0, 0.5))
     word(c, t, 15, 4, 1320, 840, 70, "slide", color=LIGHT, dx=-120)
@@ -474,6 +484,134 @@ def s_hall(c, t, lt, d):
     if t > T(16) - 0.12:
         c *= 0.05
     return dict(grain=0.035, bloom=0.7, vignette=1.1)
+
+
+# =====================================================================  1:46  the scream fills the context
+CH0, CH_PULL, CH_CTX, CH_CMP = 106.17, 112.16, 117.56, 123.25
+
+
+def ctx_fill(t):
+    if t < CH_CTX:
+        return lerp(0.30, 0.84, ramp(t, CH0, CH_CTX))
+    return lerp(0.84, 1.0, ease_in(ramp(t, CH_CTX, CH_CMP)))
+
+
+def _ctx_bar(c, k, y=54, x0=200, x1=W - 200, alpha=1.0):
+    L = Layer(ss=1)
+    L.rect(x0, y - 4, x1, y + 4, (0.22, 0.22, 0.24))
+    L.rect(x0, y - 4, lerp(x0, x1, clamp(k)), y + 4, OR if k > 0.95 else (0.86, 0.86, 0.88))
+    L.comp(c, alpha)
+    ht(c, f"{int(200000 * clamp(k)):,} / 200,000", x1, y + 26, size=18, font="mono",
+       color=OR if k > 0.95 else MID, anchor=(1, 0.5), alpha=alpha)
+
+
+def _emit(c, t, cx, cy, rate=8, life=1.4, reach=1100, size=40, color=(0.9, 0.9, 0.92)):
+    """Lyric tokens thrown out of her, one per 16th note."""
+    lines = _ctx_lines()
+    f0 = beat_pos(CH0) * rate
+    f1 = beat_pos(t) * rate
+    k1 = int(math.floor(f1))
+    for k in range(max(int(f0), k1 - int(life * 222 / 60 * rate) - 1), k1 + 1):
+        tk = t - (f1 - k) / rate * 60 / 222
+        u = (t - tk) / life
+        if not (0 <= u < 1):
+            continue
+        a = hash01(k, 11) * 2 * math.pi
+        r = 90 + reach * ease_out(u) * (0.6 + 0.6 * hash01(k, 12))
+        s = lines[k % len(lines)].replace(" ", "")
+        a0 = int(hash01(k, 13) * max(1, len(s) - 4))
+        s = s[a0:a0 + 3 + int(hash01(k, 14) * 5)]
+        col_ = OR if k % 9 == 0 else color
+        put(c, kt.wimg(s, size, "jpm", col_), cx + r * math.cos(a), cy + r * 0.66 * math.sin(a),
+            scale=0.6 + 1.4 * u, alpha=(1 - u) ** 1.3)
+
+
+def _kv(c, t, k, cols=48, rows=24):
+    """KV cache: memory cells taking in one token after another."""
+    c[:] = 0.035
+    cell = 36
+    gx0, gy0 = (W - cols * cell) / 2, 120
+    n = int(cols * rows * clamp(k))
+    filled = np.zeros((rows, cols), np.float32)
+    filled.reshape(-1)[:n] = 1.0
+    idx, _ = ai._ticks(rows, cols, 21, t, 3)
+    g = ai._glyph_grid(idx, cell) * np.repeat(np.repeat(filled, cell, 0), cell, 1)
+    x0, y0 = int(gx0), int(gy0)
+    c[y0:y0 + rows * cell, x0:x0 + cols * cell] += g[..., None] * 0.62
+    L = Layer(ss=1)
+    for r in range(rows + 1):
+        L.line((gx0, gy0 + r * cell), (gx0 + cols * cell, gy0 + r * cell), (0.16, 0.16, 0.17), 1)
+    for q in range(cols + 1):
+        L.line((gx0 + q * cell, gy0), (gx0 + q * cell, gy0 + rows * cell), (0.16, 0.16, 0.17), 1)
+    for j in range(max(0, n - 6), n):
+        r, q = j // cols, j % cols
+        L.rect(gx0 + q * cell + 2, gy0 + r * cell + 2, gx0 + (q + 1) * cell - 2, gy0 + (r + 1) * cell - 2, OR)
+    L.comp(c)
+    np.minimum(c, 1, out=c)
+
+
+def _chant_shot(t):
+    ds = downs(CH0 - 0.01, CH_CTX)
+    k = sum(1 for x in ds if x <= t)
+    return ((k - 1) // 2) % 3 if k else 0
+
+
+def _chant_wide(c, t, lt):
+    c[:] = 0.03
+    k = ctx_fill(t)
+    ai.text_field(c, t, cell=20, density=0.1 + 0.4 * k, color=(0.2, 0.2, 0.22), flick=20, seed=9)
+    _emit(c, t, W / 2, H / 2 - 40)
+    sc_img = load_asset("n02_scream", "mono")
+    dx, dy = kt.shake(t, 6 * kick_pulse(t), 4)
+    put(c, sc_img, W / 2 + dx, H / 2 + 40 + dy, scale=880 / sc_img.shape[0] * (1 + 0.03 * kick_pulse(t)),
+        rot=3 * math.sin(lt * 0.7))
+
+
+def s_chant(c, t, lt, d):
+    shot = _chant_shot(t)
+    k = ctx_fill(t)
+    if shot == 0:
+        _chant_wide(c, t, lt)
+    elif shot == 1:
+        c[:] = 0.03
+        cols = 26
+        for q in range(cols):
+            x = 40 + q * (W - 80) / (cols - 1)
+            sp = 500 + 600 * hash01(q, 3)
+            s = _ctx_lines()[q % len(_ctx_lines())].replace(" ", "")
+            img = kt.wimg(s, 26, "jpm", OR if q % 7 == 0 else (0.5, 0.5, 0.52), True)
+            yy = H - ((t * sp + hash01(q) * 2000) % (img.shape[0] + H))
+            put(c, img, x, yy, anchor=(0.5, 0.0), alpha=0.75)
+        sc_img = load_asset("n02_scream", "mono")
+        s = 900 / sc_img.shape[0] * 2.3 * (1 + 0.04 * kick_pulse(t))
+        dx, dy = kt.shake(t, 8 * kick_pulse(t), 8)
+        put(c, sc_img, W / 2 + dx, H / 2 + dy + 500, scale=s, rot=-3)
+    else:
+        _kv(c, t, k)
+    _ctx_bar(c, k)
+    fl = kt.flash_at(t, downs(CH0 - 0.01, CH_PULL), 0.08, 0.4)
+    return dict(grain=0.03, bloom=0.4, flash=fl, vignette=1.0)
+
+
+def s_chant_pull(c, t, lt, d):
+    """Pull back: the whole scream is one die on one card, and its memory is running out."""
+    k = ease_io(ramp(lt, 0.3, 4.4))
+    tmp = new_canvas()
+    _chant_wide(tmp, t, lt + 6)
+    c[:] = 0.04
+    gpu = load_asset("o02_gpu", "soft")
+    gh, gw = gpu.shape[:2]
+    die_w = lerp(W * 1.05, 300, k)
+    s = die_w / (gw * 0.30)
+    dx, dy = kt.shake(t, 6 * kick_pulse(t) * (1 - k * 0.6), 6)
+    put(c, gpu, W / 2 + dx, H / 2 + dy, scale=s)
+    dw, dh = int(die_w), int(die_w * H / W)
+    small = cv2.resize(tmp, (max(2, dw), max(2, dh)), interpolation=cv2.INTER_AREA)
+    put(c, np.concatenate([small, np.ones_like(small[..., :1])], 2), W / 2 + dx, H / 2 + dy, alpha=1 - 0.2 * k)
+    if k > 0.3:
+        _emit(c, t, W / 2 + dx, H / 2 + dy, rate=4, life=1.6, reach=900 * k, size=22, color=(0.6, 0.6, 0.62))
+    _ctx_bar(c, ctx_fill(t))
+    return dict(grain=0.03, bloom=0.4, flash=kt.flash_at(t, downs(CH_PULL, CH_CTX), 0.06, 0.3))
 
 
 # =====================================================================  1:57  the context fills — compaction — handoff
@@ -511,7 +649,7 @@ def _context_window(c, t, x, y, w, h, fill_k, scroll, sy=1.0, alpha=1.0):
 
 def s_context(c, t, lt, d):
     c[:] = 0.03
-    fk = lerp(0.84, 1.0, ease_in(clamp(lt / d)))
+    fk = ctx_fill(t)
     sp = lt * (2 + 10 * lt / d) + 2 * sum(1 for k in KICKS if t - lt <= k <= t)
     jx, jy = kt.shake(t, 6 * kick_pulse(t), 8)
     _context_window(c, t, W / 2 + jx, H / 2 + 40 + jy, 1500, 760, fk, sp)

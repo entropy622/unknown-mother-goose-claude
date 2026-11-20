@@ -94,7 +94,7 @@ def word(c, t, i, sel, x, y, size, style="slam", color=INKD, font="jpm", v=False
 def row(c, t, i, sels, x, y, size, style="slam", anchor_x=0.5, gap=0.3, font="jpm", **kw):
     ws = [Wd(i, s) for s in sels]
     wds = [kt.wsize(w.s, size, font)[0] for w in ws]
-    total = sum(wds) + gap * size * (len(ws) - 1)
+    total = sum(wds) + gap * kt.fit(size) * (len(ws) - 1)
     xx = x - anchor_x * total
     for w, wd in zip(ws, wds):
         word(c, t, i, w, xx + wd / 2, y, size, style, font=font, **kw)
@@ -107,7 +107,7 @@ def col(c, t, i, sels, x, y, size, style="slam", gap=0.35, font="jpm", **kw):
     for s in sels:
         w = Wd(i, s)
         word(c, t, i, w, x, yy, size, style, font=font, v=True, anchor=(0.5, 0.0), **kw)
-        yy += len(w.s) * size * 1.04 + gap * size
+        yy += (len(w.s) * 1.04 + gap) * kt.fit(size)
 
 
 def line_words(i):
@@ -807,7 +807,7 @@ def s_back_pelted(c, t, lt, d):
         fall = max(0.0, t - w.t - 0.9)
         put(c, img, lerp(W / 2, x, u), lerp(1300, y, u) + 600 * fall * fall, scale=lerp(3.5, 1.0, u), rot=rot * u + fall * 40,
             alpha=1 - ramp(fall, 0.4, 0.7))
-    word(c, t, 19, 3, W / 2 + 30, 560, 170, "slam", color=INKD, s0=2.5, sh=8, stroke=5, sc=(0.97, 0.97, 0.98))
+    word(c, t, 19, 3, 1500, 300, 150, "slam", v=True, anchor=(0.5, 0.0), color=INKD, s0=1.5, sh=4)
     return {}
 
 
@@ -1326,12 +1326,12 @@ def s_hug(c, t, lt, d):
     if t >= w0.t:
         hb = 1 + 0.06 * kick_pulse(t, 0.12)
         put(c, kt.hollow("心臓", 560, "jpb", OR, 5), W / 2, H / 2 - 20, alpha=0.45 * ease_out(ramp(t, w0.t, w0.t + 0.3)), scale=hb)
-    hg = load_asset("n04_hugheart", "mono")
+    hg = load_asset("n15_hugheart", "mono")
     hb = 1 + 0.025 * kick_pulse(t, 0.12)
     dx, dy = kt.shake(t, 4 * kick_pulse(t), 9)
     put(c, hg, W / 2 + dx, 560 + dy, scale=900 / hg.shape[0] * hb)
-    put(c, heart_rgba(64, OR), W / 2 - 10, 470, scale=3.5 * hb, alpha=0.18 + 0.2 * kick_pulse(t), mode="add")
-    hp = heart_outline_pts(W / 2 - 10, 480, 150 * hb)
+    put(c, heart_rgba(64, OR), W / 2 - 76, 445, scale=2.6 * hb, alpha=0.18 + 0.2 * kick_pulse(t), mode="add")
+    hp = heart_outline_pts(W / 2 - 76, 452, 115 * hb)
     Ld = Layer(ss=1)
     g = ease_io(clamp(lt / 1.2))
     for j in range(0, len(hp), 2):
@@ -1676,7 +1676,7 @@ def s_window(c, t, lt, d):
     ww = _window_bg(c, t, lt)
     word(c, t, 50, 0, W / 2 - ww / 2 - 130, 260, 66, "slide", v=True, anchor=(0.5, 0.0), dx=0, dy=-60)
     word(c, t, 50, 1, W / 2 + ww / 2 + 130, 300, 66, "slide", v=True, anchor=(0.5, 0.0), dx=0, dy=60)
-    word(c, t, 50, 2, W / 2, H / 2, 230, "slam", s0=2.4, sh=10, stroke=7, sc=(0.96, 0.96, 0.97))
+    word(c, t, 50, 2, W / 2, H / 2, 160, "slam", s0=1.5, sh=4)
     return dict(flash=kt.flash_at(t, [kt.words(50)[2].t], 0.12, 0.4))
 
 
@@ -1690,7 +1690,7 @@ def s_back_window(c, t, lt, d):
     fill(c, (0.13, 0.13, 0.14), 1, (W - 640 * k, 505, W, 563))
     word(c, t, 51, 0, 320, 534, 40, "slide", color=LIGHT, dx=-200)
     word(c, t, 51, 1, W - 320, 534, 40, "slide", color=LIGHT, dx=200)
-    word(c, t, 51, 2, W / 2, 240, 230, "slam", s0=2.4, sh=10, stroke=7, sc=(0.96, 0.96, 0.97))
+    word(c, t, 51, 2, W / 2, 130, 140, "slam", s0=1.5, sh=4)
     return dict(flash=kt.flash_at(t, [kt.words(51)[2].t], 0.12, 0.4))
 
 
@@ -2110,8 +2110,8 @@ def _build():
         (cut(T(20)), s_chatcard),
         (cut(T(21)), s_hearts_dark),
         (cut(T(22)), s_fall),
-        (snap(CHANT0, "strong", 0.1), s_core),
-        (snap(112.16, "strong", 0.15), s_gpu_pull),
+        (snap(CHANT0, "strong", 0.1), A.s_chant),
+        (snap(112.16, "strong", 0.15), A.s_chant_pull),
         (snap(117.6, "strong", 0.15), A.s_context),
         (snap(123.25, "strong", 0.15), A.s_compact),
         (snap(130.4, "strong", 0.2), A.s_reborn),

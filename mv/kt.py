@@ -2,6 +2,7 @@
 import math
 from functools import lru_cache
 
+import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -126,15 +127,47 @@ def active(i, t, keep=0.0):
 
 
 # ---------------------------------------------------------------- glyph images
+def fit(size):
+    """Display sizes are compressed: very large type reads as karaoke, not as a lyric video."""
+    size = float(size)
+    return int(size if size <= 120 else 120 + (size - 120) * 0.45)
+
+
+def face(font, size):
+    """Large words are set in Mincho; small text stays Gothic."""
+    if font == "jpb" or (font == "jpm" and size >= 96):
+        return "min"
+    return font
+
+
 @lru_cache(maxsize=96)
-def wimg(s, size, font="jpm", color=(0.2, 0.2, 0.22), vertical=False, stroke=0, stroke_color=(1, 1, 1), spacing=0.04):
-    return text_rgba(s, int(size), font, tuple(float(v) for v in color), vertical, spacing, 1.15, int(stroke),
-                     tuple(float(v) for v in stroke_color))
+def wimg(s, size, font="jpm", color=(0.2, 0.2, 0.22), vertical=False, stroke=0, stroke_color=(1, 1, 1), spacing=0.04,
+         raw=False):
+    if not raw:
+        size = fit(size)
+        font = face(font, size)
+    img = text_rgba(s, int(size), font, tuple(float(v) for v in color), vertical, spacing, 1.15, 0, (1, 1, 1))
+    if stroke <= 0:
+        return img
+    r = max(4, int(size * 0.12))
+    a = np.pad(img[..., 3], r * 2)
+    halo = cv2.GaussianBlur(cv2.dilate(a, np.ones((3, 3), np.uint8), iterations=max(1, r // 3)), (0, 0), r)
+    halo = np.clip(halo * 0.75, 0, 1)
+    out = np.zeros(a.shape + (4,), np.float32)
+    out[..., :3] = np.array(stroke_color, np.float32) * halo[..., None]
+    out[..., 3] = halo
+    p = np.pad(img, ((r * 2, r * 2), (r * 2, r * 2), (0, 0)))
+    out = out * (1 - p[..., 3:4]) + p
+    return out
 
 
 @lru_cache(maxsize=48)
 def hollow(s, size, font="jpb", color=(0.2, 0.2, 0.22), width=3, vertical=False, spacing=0.04):
-    """Outline-only text (hollow letters)."""
+    """Formerly outline letters; now a faint filled watermark in the display face."""
+    return wimg(s, size, font, color, vertical, 0, (1, 1, 1), spacing) * 0.4
+
+
+def _hollow_outline(s, size, font="jpb", color=(0.2, 0.2, 0.22), width=3, vertical=False, spacing=0.04):
     size = int(size)
     f = _font(font, size)
     pad = width + 8
@@ -165,7 +198,8 @@ def hollow(s, size, font="jpb", color=(0.2, 0.2, 0.22), width=3, vertical=False,
 
 
 def wsize(s, size, font="jpm", spacing=0.04):
-    f = _font(font, int(size))
+    size = fit(size)
+    f = _font(face(font, size), int(size))
     return sum(f.getlength(ch) + size * spacing for ch in s) - size * spacing, size
 
 

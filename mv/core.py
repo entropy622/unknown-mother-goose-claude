@@ -26,6 +26,9 @@ FONTS = {
     "jpm": r"C:\Windows\Fonts\YuGothM.ttc",
     "jpb": r"C:\Windows\Fonts\YuGothB.ttc",
     "mono": r"C:\Windows\Fonts\CascadiaMono.ttf",
+    "min": str(Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoSerifCJKjp-Medium.otf"),
+    "minr": str(Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoSerifCJKjp-Regular.otf"),
+    "minb": str(Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoSerifCJKjp-SemiBold.otf"),
 }
 
 # ---------------------------------------------------------------- timing (measured from the album track)
