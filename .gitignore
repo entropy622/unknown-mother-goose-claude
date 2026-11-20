@@ -1,0 +1,16 @@
+# copyrighted source material (song audio, lyrics, reference MV) — supply your own
+audio/*.wav
+audio/*.m4a
+audio/*.mp3
+audio/lyrics.json
+*.lrc
+ref/
+
+# renders and scratch
+out/
+preview/
+__pycache__/
+*.pyc
+assets/cache/
+assets/ref_sheet.jpg
+audio/ref_sub_times.json

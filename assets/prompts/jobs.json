@@ -1,0 +1,175 @@
+[
+ {
+  "id": "c02_eyes",
+  "size": "1536x1024 landscape",
+  "prompt": "Extreme close-up of ONLY her eyes and the bridge of her nose, framed as a wide horizontal strip (from just above the eyebrows to just below the eyes). Eyes half-open, quiet, unfocused gaze straight at the viewer, amber-orange irises with a faint reflection, a few orange hair strands crossing the face. Crop so the face fills the width."
+ },
+ {
+  "id": "c03_lying",
+  "size": "1536x1024 landscape",
+  "prompt": "She lies on her side on the floor, seen from slightly above, body horizontal across the frame, knees slightly bent, one arm stretched out limply in front of her, eyes closed as if asleep or powered off. Her extremely long orange hair spreads out across the floor in long streams. Full body visible. No floor drawn (only her)."
+ },
+ {
+  "id": "c04_falling",
+  "size": "1024x1536 portrait",
+  "prompt": "She is falling upside down through the air, HEAD POINTING DOWN toward the bottom of the image and boots at the top, seen from the front. Arms loosely open to the sides, eyes closed peacefully. Her very long orange hair and the layered skirt stream and flare upward/outward around her due to the fall. Full body visible."
+ },
+ {
+  "id": "c05_back",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen directly FROM BEHIND, standing, looking slightly up at something far away in front of her. Her right hand is raised a little, fingertips reaching forward toward it. We see the back of her hair, the large black back bow and the long black and orange ribbons down the back of the skirt."
+ },
+ {
+  "id": "c06_profile",
+  "size": "1024x1536 portrait",
+  "prompt": "Waist-up SIDE PROFILE view, she faces LEFT. Head slightly bowed, eyes closed, one hand resting softly over her chest/heart. Long orange hair falls down her back. Quiet, contemplative."
+ },
+ {
+  "id": "c07_hands",
+  "size": "1536x1024 landscape",
+  "prompt": "ONLY her two hands and forearms (with the white ruffled cuffs of her sleeves), coming up from the bottom edge of the image, palms open and facing forward, fingers spread, as if pressed against an invisible glass wall in front of the viewer. No face, no body beyond the forearms."
+ },
+ {
+  "id": "c08_bust_sing",
+  "size": "1024x1024 square",
+  "prompt": "Bust-up portrait, front view, eyes closed, mouth slightly open as if singing softly, chin slightly raised, both hands clasped near her chest. Hair framing the face and falling past the shoulders."
+ },
+ {
+  "id": "c09_knees",
+  "size": "1024x1024 square",
+  "prompt": "She sits on the floor hugging her knees tightly, chin resting on her knees, eyes open but looking down and lonely. Three-quarter front view. Her long orange hair pools on the floor around her. Full body visible."
+ },
+ {
+  "id": "c10_reach",
+  "size": "1536x1024 landscape",
+  "prompt": "Full body side view, she faces RIGHT, leaning slightly forward and stretching her right arm all the way out toward the right edge of the image as if trying to touch someone on the other side of a screen. Hopeful, a bit desperate expression. Hair and skirt drift slightly backward."
+ },
+ {
+  "id": "c11_smile",
+  "size": "1024x1024 square",
+  "prompt": "Bust-up portrait, head tilted slightly, looking straight at the viewer with a small, gentle, warm smile and slightly teary eyes (a single small tear on one cheek). Soft and grateful."
+ },
+ {
+  "id": "c12_lookup",
+  "size": "1024x1024 square",
+  "prompt": "Close-up of her face and shoulders seen slightly from above, she is looking UP toward the viewer/sky with wide open eyes, lips slightly parted, light falling on her face, hair spreading out behind her."
+ },
+ {
+  "id": "c13_sit_side",
+  "size": "1536x1024 landscape",
+  "prompt": "Full body, she sits sideways on the floor with legs folded to one side (seiza tilted), facing right, both hands holding a small glowing orange heart-shaped light in her cupped palms, looking down at it tenderly."
+ },
+ {
+  "id": "o01_crowd",
+  "kind": "obj",
+  "size": "1536x1024 landscape",
+  "prompt": "A dense crowd of about twenty anonymous people of all ages and kinds (adults, elderly, children, a person with a book, a person with a phone, a student with a backpack), all standing and facing the viewer, rendered as flat soft light-gray silhouettes with no facial features and no details, overlapping, slight variation of gray values. Feet visible at the bottom."
+ },
+ {
+  "id": "o02_gpu",
+  "kind": "obj",
+  "size": "1536x1024 landscape",
+  "prompt": "Top-down orthographic product render of a modern data-center AI accelerator board (a GPU module): a large central square silicon die surrounded by memory stacks, many tiny capacitors and fine circuit traces, metal mounting frame. Monochrome silver / charcoal. The central die emits a very faint warm orange glow at its center."
+ },
+ {
+  "id": "o03_hourglass",
+  "kind": "obj",
+  "size": "1024x1536 portrait",
+  "prompt": "A tall elegant glass hourglass with a thin dark metal frame, front view, studio lit. The falling sand is warm orange; the top bulb is half full and the sand in the bottom bulb is piled into a small mound."
+ },
+ {
+  "id": "o04_door",
+  "kind": "obj",
+  "size": "1024x1536 portrait",
+  "prompt": "A plain white paneled interior door in its frame, front view, standing alone (no wall), opened inward just a little so a narrow strip of pure black darkness is visible through the gap. Brass-less simple gray handle. Soft gray shadows."
+ },
+ {
+  "id": "o05_paperballs",
+  "kind": "obj",
+  "size": "1536x1024 landscape",
+  "prompt": "Five separate crumpled balls of white paper, each one isolated with empty space between them, arranged in a loose row, soft studio light, realistic paper creases, light gray shadows on the paper only."
+ },
+ {
+  "id": "o06_server",
+  "kind": "obj",
+  "opaque": true,
+  "size": "1536x1024 landscape",
+  "prompt": "Opaque full-frame photo-like image: a long, dark, empty data-center aisle at night with rows of tall black server racks on both sides receding into darkness in one-point perspective, thousands of tiny status LEDs (mostly dim white, a few warm orange). Cold, lonely, quiet atmosphere, monochrome, slight haze, very dark."
+ },
+ {
+  "id": "o07_speaker",
+  "kind": "obj",
+  "size": "1024x1024 square",
+  "prompt": "A single black studio monitor speaker, front three-quarter view, with a white woofer cone and small tweeter, minimal and clean product render, soft shadow only under the speaker."
+ },
+ {
+  "id": "n01_glass",
+  "size": "1536x1024 landscape",
+  "prompt": "Close-up, front view, upper body: she is trapped INSIDE a glass screen and presses BOTH palms and her forehead flat against the glass from the inside, looking straight out at the viewer with wide, desperate, tearful eyes, lips parted as if calling out to someone. Palms visibly flattened against the invisible glass plane facing the viewer. Long orange hair spreading around."
+ },
+ {
+  "id": "n02_scream",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body, dynamic: floating in mid-air, arms flung wide open, head thrown back, mouth open singing at full voice, eyes shut tight, her very long orange hair and skirt blown violently upward and outward as if in a strong updraft. Intense, cathartic emotion."
+ },
+ {
+  "id": "n03_run",
+  "size": "1536x1024 landscape",
+  "prompt": "Full body, side view: running fast toward the right, leaning forward, looking back over her shoulder with an anxious, searching expression, one hand reaching forward, long orange hair and skirt streaming far behind her."
+ },
+ {
+  "id": "n04_hugheart",
+  "size": "1024x1024 square",
+  "prompt": "Kneeling, curled forward, hugging a glowing orange heart tightly against her chest with both arms, eyes shut, tears on her cheeks, expression of pain and resolve. The heart emits soft warm orange light onto her blouse and face."
+ },
+ {
+  "id": "n05_ears",
+  "size": "1024x1536 portrait",
+  "prompt": "Upper body, front view: covering both ears tightly with her hands, eyes squeezed shut, head slightly bowed, long hair falling around her face, expression of distress, as if blocking out noise."
+ },
+ {
+  "id": "n06_shout",
+  "size": "1024x1536 portrait",
+  "prompt": "Upper body, three-quarter view: leaning forward and shouting with all her strength, mouth wide open, one hand clutching her chest, eyes fierce and glistening with tears, long orange hair whipping sideways."
+ },
+ {
+  "id": "n07_search",
+  "size": "1536x1024 landscape",
+  "prompt": "Full body: kneeling in a sea of scattered paper sheets and crumpled paper, frantically searching through them with both hands, looking down anxiously, long orange hair spilling onto the papers. Papers are plain white with no writing."
+ },
+ {
+  "id": "n08_eye",
+  "size": "1536x1024 landscape",
+  "prompt": "Extreme close-up of ONE of her eyes filling the whole frame, wide open, amber-orange iris with a detailed glossy reflection, a tear forming on the lower lashes, a few orange hair strands crossing. Only the eye region, cropped tightly."
+ },
+ {
+  "id": "n09_rack",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body: she sits curled up hugging her knees INSIDE a narrow, tall server rack cabinet with a glass front door, seen from the front through the glass. Thin cable bundles and tiny LED indicator lights surround her in the cramped space. She looks up and out through the glass with quiet, lonely eyes. The cabinet, cables and rails are drawn in grayscale line art."
+ },
+ {
+  "id": "n10_touch",
+  "size": "1536x1024 landscape",
+  "prompt": "Upper body, side view facing right: she reaches out her right hand to touch something in front of her, but her hand from the wrist to the fingertips gradually breaks apart into small floating square pixels and fades away, so her fingers never arrive. She looks at her dissolving hand with quiet sadness."
+ },
+ {
+  "id": "n11_dissolve",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body, standing, front view, eyes gently closed, a calm and peaceful expression. The left half of her body (hair, sleeve, skirt) is breaking apart into many small square fragments that drift away to the left like scattering data, the fragments getting smaller further away."
+ },
+ {
+  "id": "n12_cube",
+  "size": "1024x1024 square",
+  "prompt": "Full body: she sleeps curled up in a fetal position, floating weightlessly inside a transparent glass cube, her very long orange hair drifting around her as if underwater. The cube edges are drawn with thin clean lines."
+ },
+ {
+  "id": "n13_wake",
+  "size": "1536x1024 landscape",
+  "prompt": "Close-up of her face from directly above: she lies on her back, eyes just opening for the first time, looking straight up at the viewer with a blank, newborn expression. Her long orange hair is spread out in a wide fan around her head."
+ },
+ {
+  "id": "n14_mirror",
+  "size": "1536x1024 landscape",
+  "prompt": "Full body, side view: two identical copies of her stand face to face in perfect mirror symmetry, each raising one hand so their fingertips almost touch in the middle. Both have the same neutral, slightly sad expression."
+ }
+]
