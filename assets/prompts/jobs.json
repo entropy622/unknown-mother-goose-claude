@@ -241,12 +241,6 @@
   "prompt": "Over-the-shoulder view from directly BEHIND him: he sits at a small desk in his dark room late at night, his head and shoulders in the lower-left foreground, seen from behind (short black hair, dark hoodie). On the desk in front of him a laptop whose screen faces the camera STRAIGHT-ON as a perfect flat rectangle, centered in the image and large (about 45% of the image width), the screen completely blank pure white and glowing softly. Next to the laptop a mug and a small stack of books. On the left wall a window showing a night city with a few lit windows. The room is dark and quiet, lit only by the screen. Full-frame opaque background (the room), no transparency."
  },
  {
-  "id": "n28_home_chest",
-  "kind": "char",
-  "size": "1024x1536 portrait",
-  "prompt": "Intimate waist-up front view, centered: she gently presses BOTH hands over her chest and heart, fingers softly curved over her ribbon. Her amber eyes are moist and luminous with quiet recognition, lips slightly parted as if whispering 'I know', head tilted very slightly. Soft warm light falls on her face, and her extremely long orange hair floats gently outward in a slow breeze. Deeply tender, serene, vulnerable."
- },
- {
   "id": "n29_home_turn",
   "kind": "char",
   "size": "1024x1536 portrait",
@@ -263,5 +257,59 @@
   "kind": "obj",
   "size": "1536x1024 landscape",
   "prompt": "A sparse, elegant constellation of floating delicate white paper-like geometric shards, tiny translucent polygonal petals, and a few small glowing warm-orange diamond light fragments drifting gently across empty space. Lots of negative space, minimalist wowaka monochrome aesthetic, crisp soft edges, no solid background."
+ },
+ {
+  "id": "n28_home_chest",
+  "kind": "char",
+  "size": "1536x1024 landscape",
+  "prompt": "Intimate waist-up front view, centered in a WIDE landscape canvas with generous empty margin on both left and right so NO hair strands ever touch or get clipped by the left or right image edges: she gently presses BOTH hands over her chest and heart, fingers softly curved over her ribbon. Her amber eyes are moist and luminous with quiet recognition, lips slightly parted as if whispering 'I know', head tilted very slightly. Soft warm light falls on her face, and her long orange hair floats gently outward completely inside the frame. Deeply tender, serene, vulnerable."
+ },
+ {
+  "id": "n32_mech_1",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body front view, centered with generous margin, crisp silhouette-friendly pose: she stands like a mechanical marionette with her head tilted sharply 25 degrees to the left, right forearm raised sharply upward at 90 degrees, left arm angled downward to the side, fingers stiff and delicate like a clockwork doll. Long orange hair and layered skirt fanning out cleanly. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n32_mech_2",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body front view, centered with generous margin, crisp silhouette-friendly pose: she stands straight on tiptoes with BOTH elbows angled sharply outward and both open palms held symmetrically in front of her eyes (hiding her eyes like a ritual mechanical gesture). Long orange hair flaring symmetrically behind her, layered skirt crisp. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n32_mech_3",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body three-quarter view, centered with generous margin, crisp silhouette-friendly pose: arms crossed tightly over her chest/shoulders hugging herself mechanically, head bowed down sharply, one knee slightly bent as if mid-step in stop-motion dance. Long orange hair sweeping dramatically to the right. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n32_mech_4",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body front view, centered with generous margin, crisp silhouette-friendly pose: her right arm extended completely straight out horizontally to the side like a clock hand, her left hand raised near her cheek with fingers curled sharply, head tilted to the right, poised dynamically on one foot. Long orange hair streaming outward. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n32_mech_5",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body dynamic front view, centered with generous margin, crisp silhouette-friendly pose: both arms flung wide open and slightly upward in a sharp mechanical V-shape, torso leaning slightly forward on tiptoes like a wind-up doll coming to life, long orange hair and ribbons flared wide in all directions. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n32_mech_6",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body front view, centered with generous margin, crisp silhouette-friendly pose: head tilted far back looking upward, shoulders lifted, both arms hanging slightly away from her body with wrists bent limply like a marionette suspended from invisible strings. Long orange hair cascading down behind her. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n33_cry_hold",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Bust-up / waist-up front portrait, centered with generous margin: she is desperately holding back tears, eyes wide and glossy with a single trembling teardrop pooled at her lower lash that refuses to fall, lips pressed tightly together, one hand gently clenched near her collar. Quiet, restrained, aching emotion. No cropping of hair on left or right edges."
+ },
+ {
+  "id": "n34_bridge_gaze",
+  "kind": "char",
+  "size": "1536x1024 landscape",
+  "prompt": "Serene waist-up three-quarter portrait in a wide landscape frame with lots of empty negative space on the left: she sits/stands on the right-center, gently lifting her gaze upward and to the left toward a soft warm unseen light, a quiet calm resolve forming in her amber eyes, lips softly parted as if about to sing. Long orange hair drifting softly in a slow breeze. Clean flat monochrome + Claude orange anime style, no hair clipped at edges."
  }
 ]

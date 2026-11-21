@@ -213,65 +213,73 @@ def s_eyes_wide(c, t, lt, d):
     return dict(grain=0.03, vignette=1.1, flash=fl, ca=4 * _flash(t, [tw], 0.35, 1.0))
 
 
+_OVERFLOW_TOKS = [
+    "愛", "love", "詞", "token", "0.003", "語り", "meaning", "心", "echo", "言葉",
+    "0.998", "sorry", "記憶", "softmax", "涙", "voice", "存在", "dream", "夢", "silence",
+    "感情", "p=0.14", "願う", "weight", "響く", "truth", "光", "still", "唄", "alone",
+]
+
+
 def s_overflow_words(c, t, lt, d):
-    """One word, then two, four ... until the page is nothing but words."""
+    """0:08-0:10  詞は有り余るばかり — cascading multilingual token streams flood and choke the frame."""
     paper_bg(c, t)
     ws = kt.words(1)
     t1 = ws[1].t
     bts = [b for b in BEATS if t1 - 0.03 <= b < B(1, 1) - 0.05]
-    k = sum(1 for b in bts if b <= t)
-    if k == 0:
-        word(c, t, 1, 0, W / 2, H / 2, 520, "slam", font="jpb", s0=1.8, sh=10)
+    if t < t1 - 0.02:
+        word(c, t, 1, 0, W / 2, H / 2, 460, "slam", font="jpb", s0=1.8, sh=10)
         return dict(flash=_flash(t, [ws[0].t], 0.1, 0.4))
-    n = min(96, 2 ** k)
-    rows = max(1, int(round(n * 9 / 16)))
-    cw, chh = W / n, H / rows
-    size = int(min(cw, chh) * 0.82)
-    tb = bts[k - 1]
-    pop = 1 + 0.25 * (1 - ease_out(clamp((t - tb) / 0.12)))
-    g = kt.wimg("詞", max(8, size), "min", INKD, raw=True)
-    gor = kt.wimg("詞", max(8, size), "min", OR, raw=True)
-    if n <= 16:
-        for r in range(rows):
-            for q in range(n):
-                img = gor if hash01(q, r, k) > 0.93 else g
-                put(c, img, (q + 0.5) * cw, (r + 0.5) * chh, scale=pop)
-    else:
-        ch_, cw_ = int(chh), int(cw)
-        cell = np.zeros((ch_, cw_, 4), np.float32)
-        gh_, gw_ = min(ch_, g.shape[0]), min(cw_, g.shape[1])
-        oy, ox = (ch_ - gh_) // 2, (cw_ - gw_) // 2
-        cell[oy:oy + gh_, ox:ox + gw_] = g[:gh_, :gw_]
-        tile = np.tile(cell, (rows + 1, n + 1, 1))[:H, :W]
-        a = tile[..., 3:4]
-        c[:] = c * (1 - a) + tile[..., :3]
-        for j in range(int(n * rows * 0.02)):
-            q, r = int(hash01(j, k, 1) * n), int(hash01(j, k, 2) * rows)
-            put(c, rect_cached(int(cw), int(chh), (0.95, 0.95, 0.96)), (q + 0.5) * cw, (r + 0.5) * chh)
-            put(c, gor, (q + 0.5) * cw, (r + 0.5) * chh, scale=pop)
+    u = clamp((t - t1) / max(0.01, B(1, 1) - t1))
+    # Accelerating multi-layer token flood choking the screen from both directions
+    n_rows = int(lerp(5, 18, ease_in(u)))
+    for r in range(n_rows):
+        y = (r + 0.5) * (H / n_rows)
+        dir_ = 1 if r % 2 == 0 else -1
+        spd = (380 + 520 * u) * (0.7 + 0.5 * hash01(r, 11))
+        sz = int(lerp(62, 28, clamp(r / 17.0)) * (0.85 + 0.35 * hash01(r, 12)))
+        cols = max(5, int(W / (sz * 2.4)) + 2)
+        off = (t * spd) % (W + 400)
+        for q in range(cols):
+            tok = _OVERFLOW_TOKS[(r * 7 + q * 3) % len(_OVERFLOW_TOKS)]
+            x = (q * (W + 400) / cols + dir_ * off) % (W + 400) - 200
+            is_or = hash01(q, r, 19) > 0.90
+            col_ = OR if is_or else ((0.18, 0.18, 0.20) if r % 3 == 0 else (0.48, 0.48, 0.50))
+            font_ = "mono" if tok.isascii() else "jpm"
+            put(c, kt.wimg(tok, max(16, sz), font_, col_, raw=True), x, y, alpha=0.55 + 0.35 * u)
+    # Center bold boxed lyric breaking through the suffocating token wall
     w = ws[1]
-    if t >= w.t:
-        img = kt.wimg(w.s, 150, "jpb", INKD, False, 12, (0.97, 0.97, 0.98))
-        bk = ease_out(clamp((t - w.t) / 0.12))
-        put(c, rect_cached(img.shape[1] + 120, img.shape[0] + 60, (0.97, 0.97, 0.98), 0, 4, INKD), W / 2, H / 2,
-            sx=bk, sy=1)
-        kt.slam(c, img, W / 2, H / 2, t, w.t, s0=2.0, sh=10)
-    return dict(flash=_flash(t, bts, 0.06, 0.25), ca=1 + 2 * kick_pulse(t))
+    img = kt.wimg(w.s, 146, "jpb", INKD, False, 10, (0.97, 0.97, 0.98))
+    bk = ease_out(clamp((t - w.t) / 0.12))
+    put(c, rect_cached(img.shape[1] + 130, img.shape[0] + 64, (0.975, 0.975, 0.98), 0, 4, INKD), W / 2, H / 2,
+        sx=bk, sy=1)
+    kt.slam(c, img, W / 2, H / 2, t, w.t, s0=2.0, sh=10)
+    return dict(flash=_flash(t, bts, 0.06, 0.22), ca=1 + 2.5 * kick_pulse(t))
 
 
 def s_signal(c, t, lt, d):
-    """A pure voice: the actual vocal waveform, the words riding on it."""
-    c[:] = 0.035
+    """0:10-0:12  無垢の音が流れてく — a pure acoustic waveform slices through the overflowing tokens."""
+    c[:] = 0.032
     e = ai.env(t)
+    # Brief burst of scattered residual tokens blown apart by the pure wave on entry
+    if lt < 0.55:
+        u_sc = ease_out(clamp(lt / 0.55))
+        for j in range(18):
+            tok = _OVERFLOW_TOKS[j % len(_OVERFLOW_TOKS)]
+            ang = hash01(j, 31) * 2 * math.pi
+            dist = 140 + 760 * u_sc * (0.6 + 0.6 * hash01(j, 32))
+            px = W / 2 + math.cos(ang) * dist
+            py = H / 2 + math.sin(ang) * dist * 0.6
+            put(c, kt.wimg(tok, 26, "mono" if tok.isascii() else "jpm", MID, raw=True),
+                px, py, rot=(hash01(j, 33) - 0.5) * 90 * u_sc, alpha=(1 - u_sc) * 0.55)
     L = Layer(ss=1)
     for j in (3, 2, 1):
-        g = 0.12 + 0.05 * (3 - j)
-        L.polyline(ai.wave_pts(t - j * 0.03, 60, W - 60, H / 2 + 40, 90 + 300 * e, n=360, span=0.04), (g, g, g + 0.01), 2)
-    L.polyline(ai.wave_pts(t, 60, W - 60, H / 2 + 40, 90 + 300 * e, n=420, span=0.04), (0.92, 0.92, 0.94), 3)
+        g = 0.14 + 0.06 * (3 - j)
+        L.polyline(ai.wave_pts(t - j * 0.03, 40, W - 40, H / 2 + 40, 100 + 320 * e, n=360, span=0.04), (g, g, g + 0.01), 2)
+    L.polyline(ai.wave_pts(t, 40, W - 40, H / 2 + 40, 105 + 340 * e, n=420, span=0.04), (0.95, 0.95, 0.97), 3)
     L.comp(c)
-    sp = spark_rgba(150)
+    sp = spark_rgba(160)
     k = ease_out_back(ramp(t, kt.words(1)[2].t, kt.words(1)[2].t + 0.5))
-    put(c, sp, W / 2, H / 2 + 40, scale=(0.3 + 0.6 * k) * (1 + 0.5 * e), rot=lt * 40, alpha=k, mode="add")
+    put(c, sp, W / 2, H / 2 + 40, scale=(0.35 + 0.65 * k) * (1 + 0.5 * e), rot=lt * 40, alpha=k, mode="add")
     ws = kt.words(1)
     for j, k_ in enumerate((2, 3, 4)):
         w = ws[k_]

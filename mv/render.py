@@ -125,6 +125,73 @@ def clip(name, t0, t1, workers=10):
     print("wrote", out, f"{time.time() - st:.0f}s")
 
 
+def _clip_seg_cached(args):
+    idx, path, f0, f1 = args
+    if path.exists() and path.with_suffix(".done").exists():
+        return idx, 0.0
+    t0 = time.time()
+    _clip_seg((path, f0, f1))
+    path.with_suffix(".done").write_text("ok")
+    return idx, time.time() - t0
+
+
+def full540(name, dirty_ranges=(), workers=12, seed_mp4=None):
+    """Incremental 540p full-length render using 5s (150-frame) cached segments in out/seg540."""
+    segdir = OUT / "seg540"
+    segdir.mkdir(parents=True, exist_ok=True)
+    F1 = int(round(DURATION * FPS))
+    chunk = 150
+    jobs = [(i, segdir / f"seg_{i:03d}.mp4", f, min(F1, f + chunk))
+            for i, f in enumerate(range(0, F1, chunk))]
+    # Optional one-time bootstrap from an existing full 540p render (single fast ffmpeg pass)
+    if seed_mp4 and Path(seed_mp4).exists():
+        missing = [j for j in jobs if not (j[1].exists() and j[1].with_suffix(".done").exists())]
+        if missing:
+            print(f"seeding {len(jobs)} cached 5s segments from {seed_mp4}...", flush=True)
+            subprocess.run([
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                "-i", str(seed_mp4), "-an",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt", "yuv420p",
+                "-r", str(FPS), "-g", str(chunk), "-keyint_min", str(chunk), "-sc_threshold", "0",
+                "-force_key_frames", "expr:gte(t,n_forced*5)",
+                "-f", "segment", "-segment_time", "5", "-reset_timestamps", "1",
+                str(segdir / "seg_%03d.mp4")
+            ], check=True)
+            for idx, path, f0, f1 in jobs:
+                if path.exists():
+                    path.with_suffix(".done").write_text("ok")
+    # Invalidate segments overlapping any dirty range (t0, t1)
+    inv = 0
+    for idx, path, f0, f1 in jobs:
+        s0, s1 = f0 / FPS, f1 / FPS
+        if any(s1 > a and s0 < b for a, b in dirty_ranges):
+            if path.with_suffix(".done").exists():
+                path.with_suffix(".done").unlink()
+            if path.exists():
+                path.unlink()
+            inv += 1
+    todo = sum(1 for _, p, _, _ in jobs if not (p.exists() and p.with_suffix(".done").exists()))
+    print(f"full540: {inv} invalidated, {todo}/{len(jobs)} segments to render", flush=True)
+    st = time.time()
+    if todo > 0:
+        with Pool(min(workers, todo), maxtasksperchild=3) as pool:
+            for n, (idx, dt) in enumerate(pool.imap_unordered(_clip_seg_cached, jobs), 1):
+                if dt > 0:
+                    print(f"seg540 {idx:03d} done in {dt:4.1f}s  elapsed {time.time() - st:5.0f}s", flush=True)
+    lst = segdir / "list.txt"
+    lst.write_text("".join(f"file '{p.name}'\n" for _, p, _, _ in jobs))
+    out = OUT / "clips" / f"{name}.mp4"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run([
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "concat", "-safe", "0", "-i", str(lst),
+        "-ss", "0", "-t", str(DURATION), "-i", str(AUDIO),
+        "-map", "0:v", "-map", "1:a", "-c:v", "copy",
+        "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(out)
+    ], check=True)
+    print("wrote", out, f"total {time.time() - st:.0f}s", flush=True)
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1]
     if cmd == "times":
@@ -139,6 +206,20 @@ if __name__ == "__main__":
         Image.fromarray(to_u8(fr)).save(PREV / f"{sys.argv[3] if len(sys.argv) > 3 else 'frame'}.png")
     elif cmd == "clip":
         clip(sys.argv[2], float(sys.argv[3]), float(sys.argv[4]), int(sys.argv[5]) if len(sys.argv) > 5 else 10)
+    elif cmd == "full540":
+        name = sys.argv[2]
+        ranges = []
+        seed = None
+        workers = 12
+        for arg in sys.argv[3:]:
+            if arg.startswith("--seed="):
+                seed = arg.split("=", 1)[1]
+            elif arg.startswith("--workers="):
+                workers = int(arg.split("=", 1)[1])
+            elif "-" in arg:
+                a, b = arg.split("-", 1)
+                ranges.append((float(a), float(b)))
+        full540(name, ranges, workers=workers, seed_mp4=seed)
     elif cmd == "video":
         w = int(sys.argv[2]) if len(sys.argv) > 2 else 12
         if len(sys.argv) > 4:

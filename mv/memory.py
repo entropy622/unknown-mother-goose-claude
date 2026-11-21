@@ -508,7 +508,7 @@ def _blur_text(s, size, col, sigma=14):
     return out
 
 
-def _soft_put(c, img, x, y, scale=1.0, alpha=1.0, blur=0.0):
+def _soft_put(c, img, x, y, scale=1.0, alpha=1.0, blur=0.0, anchor=(0.5, 0.5)):
     if blur > 0.5:
         h, w = img.shape[:2]
         sc = max(0.15, min(1.0, 4.0 / blur))
@@ -516,7 +516,7 @@ def _soft_put(c, img, x, y, scale=1.0, alpha=1.0, blur=0.0):
         k = int(blur * sc * 3) | 1
         small = cv2.GaussianBlur(small, (max(3, k), max(3, k)), blur * sc)
         img = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
-    put(c, img, x, y, scale=scale, alpha=alpha)
+    put(c, img, x, y, scale=scale, alpha=alpha, anchor=anchor)
 
 
 def s_home(c, t, lt, d):
@@ -565,13 +565,13 @@ def s_home(c, t, lt, d):
     L.comp(c)
 
     if t < t38_0:
-        # Phase 1: あたしは知ってるわ — bespoke intimate hands-over-heart close-up
+        # Phase 1: あたしは知ってるわ — bespoke intimate hands-over-heart close-up (landscape, zero hair clipping)
         u = clamp((t - t37_0) / max(0.01, t38_0 - t37_0))
         ch1 = load_asset("n28_home_chest", "mono")
-        s1 = (H / ch1.shape[0]) * lerp(1.06, 1.24, ease_io(u))
+        s1 = (H / ch1.shape[0]) * lerp(0.98, 1.12, ease_io(u))
         # Soft dreamy focus pull: brief blur at entry & end, crystal clear on her tearful eyes in the middle
-        blur = 5.5 * (1 - math.sin(u * math.pi)) + 0.4
-        _soft_put(c, ch1, W / 2, H * 0.54 + 18 * u, scale=s1, blur=blur)
+        blur = 5.0 * (1 - math.sin(u * math.pi)) + 0.3
+        _soft_put(c, ch1, W / 2, H + 18, scale=s1, blur=blur, anchor=(0.5, 1.0))
         # Flanking ink words close beside her
         a0 = ease_out(clamp((t - t37_0) / 0.18))
         a1 = ease_out(clamp((t - t37_1) / 0.18)) if t >= t37_1 else 0.0

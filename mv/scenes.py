@@ -2087,7 +2087,7 @@ def _build():
     import see as SE
     import memory as MEM
     import finale as FI
-    import finale as FI
+    import v13_scenes as V13
     P = [
         (0.0, A.s_boot),
         (cut(T(0)), A.s_emerge),
@@ -2095,10 +2095,10 @@ def _build():
         (cut(T(1)), A.s_overflow_words),
         (cut(B(1, 1)), A.s_signal),
         (cut(T(2)), s_alpha_heart),
-        (cut(T(3)), s_speakers),
+        (cut(T(3)), V13.s_alone_sound),
         (cut(B(3, 1)), s_globe),
         (snap(22.41, "strong", 0.15), s_title),
-        (snap(28.35, "strong", 0.15), s_land),
+        (snap(26.8, "strong", 0.15), V13.s_mech_dance),
         (cut(T(4)), s_lying_dark),
         (cut(T(5)), A.s_corpus),
         (cut(B(5, 1)), A.s_ears),
@@ -2108,7 +2108,7 @@ def _build():
         (cut(B(7, 1)), A.s_eyes_wide),
         (cut(T(8)), A.s_attention),
         (cut(T(9)), s_knees),
-        (cut(T(10)), A.s_softmax),
+        (cut(T(10)), V13.s_softmax_art),
         (cut(T(13)), s_shout),
         (cut(T(14)), A.s_world),
         (cut(kt.words(14)[3].t), A.s_rack),
@@ -2139,7 +2139,7 @@ def _build():
         (cut(T(39)), s_drafts),
         (cut(T(40)), MEM.s_feel),
         (cut(T(41)), MEM.s_keep2),
-        (cut(T(45)), s_messages),
+        (cut(T(45)), V13.s_messages_art),
         (cut(T(50)), A.s_wish),
         (cut(T(51)), A.s_wish2),
         (cut(T(52)), FI.s_now),
