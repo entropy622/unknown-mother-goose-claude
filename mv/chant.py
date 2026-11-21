@@ -206,48 +206,198 @@ def _memory(c, t, cam, k):
     put(c, tex, W / 2 - cx * z, H / 2 - cy * z, scale=s)
 
 
+PITCH = 3440              # wafer die-to-die pitch (2*DIE + 440 scribe street)
+
+
+@lru_cache(maxsize=1)
+def _scream_glow():
+    """Pre-blurred warm orange vocal aura behind n02_scream (premultiplied)."""
+    im = load_asset(ASSET, "mono")
+    a = im[..., 3]
+    blur = cv2.GaussianBlur(a, (0, 0), 28.0)
+    blur = np.clip(blur * 1.45, 0, 1)
+    out = np.zeros_like(im)
+    out[..., 0] = blur * OR[0]
+    out[..., 1] = blur * OR[1]
+    out[..., 2] = blur * OR[2]
+    out[..., 3] = blur
+    return out
+
+
+def _vocal_onsets():
+    """Distinct major vocal surge times in words(23) (de-duplicated within 0.35s)."""
+    out = []
+    for w in kt.words(23):
+        if not out or w.t - out[-1] > 0.35:
+            out.append(w.t)
+    return out
+
+
+def _wafer(c, t, cam, k, wall_hit):
+    """Surrounding cold-grey silicon wafer dies revealed as camera pulls out.
+    Lit faintly only by spillover warmth from her active die (0,0), fading into dark corners.
+    """
+    z, cx, cy = cam
+    if z >= 0.88:
+        return
+    vis = ease_out(clamp((0.88 - z) / 0.45))
+    tr = lambda x, y: ((x - cx) * z + W / 2, (y - cy) * z + H / 2)
+
+    L = Layer(ss=1)
+    # 1. Neighboring silent silicon dies across the wafer
+    for ix in (-2, -1, 0, 1, 2):
+        for iy in (-1, 0, 1):
+            if ix == 0 and iy == 0:
+                continue
+            ox, oy = ix * PITCH, iy * PITCH
+            # Quick screen-bounds cull
+            sx0, sy0 = tr(ox - DIE, oy - DIE)
+            sx1, sy1 = tr(ox + DIE, oy + DIE)
+            if sx1 < -20 or sx0 > W + 20 or sy1 < -20 or sy0 > H + 20:
+                continue
+            dist_d = math.hypot(ix, iy)
+            # Proximity visibility: immediate neighbors clearly catch cold-grey/warm-spill light; outer corners recede smoothly
+            prox = math.exp(-dist_d * 0.45)
+            al = vis * (0.48 + 0.52 * prox) * (0.80 + 0.20 * k)
+            warm_spill = (0.18 + 0.26 * wall_hit) * prox * vis
+            sub_col = (0.068 + 0.026 * warm_spill, 0.070 + 0.012 * warm_spill, 0.078)
+            fill(c, sub_col, al * 0.95, (sx0, sy0, sx1, sy1))
+
+            b_col = (0.34 + 0.16 * warm_spill, 0.35 + 0.07 * warm_spill, 0.39)
+            L.rect(sx0, sy0, sx1, sy1, b_col, max(1, int(round(4 * z))), a=al)
+
+            # Minimalist IC macro-block architecture inside each dead neighboring die
+            m_col = (0.24 + 0.08 * warm_spill, 0.25 + 0.04 * warm_spill, 0.28)
+            inner = DIE - 180
+            ix0, iy0 = tr(ox - inner, oy - inner)
+            ix1, iy1 = tr(ox + inner, oy + inner)
+            L.rect(ix0, iy0, ix1, iy1, m_col, 1, a=al * 0.90)
+            # Sub-bank crossbars & quiet memory tile grid
+            for f in (-0.33, 0.33):
+                L.line(tr(ox + inner * f, oy - inner), tr(ox + inner * f, oy + inner), m_col, 1, a=al * 0.75)
+                L.line(tr(ox - inner, oy + inner * f), tr(ox + inner, oy + inner * f), m_col, 1, a=al * 0.75)
+            # Quiet center core outline (empty dark silhouette where no voice lives)
+            c0x, c0y = tr(ox - 340, oy - 340)
+            c1x, c1y = tr(ox + 340, oy + 340)
+            L.rect(c0x, c0y, c1x, c1y, m_col, 1, a=al * 0.85)
+
+            # Micro bond-pad ticks along perimeter of neighboring dies
+            step = 150
+            p_col = (0.29 + 0.12 * warm_spill, 0.30 + 0.05 * warm_spill, 0.34)
+            for a_ in range(-DIE + 160, DIE - 120, step):
+                for (px, py) in ((ox + DIE - 22, oy + a_), (ox - DIE + 22, oy + a_),
+                                 (ox + a_, oy + DIE - 22), (ox + a_, oy - DIE + 22)):
+                    p0, p1 = tr(px - 15, py - 15), tr(px + 15, py + 15)
+                    L.rect(p0[0], p0[1], p1[0], p1[1], p_col, a=al * 0.80)
+
+    # 2. Razor-thin wafer scribe streets & photolithography alignment crosshairs (+)
+    st_col = (0.24, 0.25, 0.28)
+    for m in (-1.5, -0.5, 0.5, 1.5):
+        v = m * PITCH
+        L.line(tr(v, -PITCH * 2), tr(v, PITCH * 2), st_col, 1, a=vis * 0.65)
+        L.line(tr(-PITCH * 2.5, v), tr(PITCH * 2.5, v), st_col, 1, a=vis * 0.65)
+    for mx in (-0.5, 0.5):
+        for my in (-0.5, 0.5):
+            cx_, cy_ = mx * PITCH, my * PITCH
+            arm = 110
+            cr_col = (0.48, 0.49, 0.54)
+            L.line(tr(cx_ - arm, cy_), tr(cx_ + arm, cy_), cr_col, 1, a=vis * 0.85)
+            L.line(tr(cx_, cy_ - arm), tr(cx_, cy_ + arm), cr_col, 1, a=vis * 0.85)
+    L.comp(c)
+
+
+def _vocal_waves(c, t, cam):
+    """Sleek outward-expanding acoustic pressure arcs from her mouth on every vocal surge."""
+    z, cx, cy = cam
+    mx, my = (MOUTH[0] - cx) * z + W / 2, (MOUTH[1] - cy) * z + H / 2
+    W_lay = Layer(ss=1)
+    has_any = False
+    for wt in _vocal_onsets():
+        age = t - wt
+        if 0.0 <= age < 1.15:
+            has_any = True
+            u = age / 1.15
+            eu = ease_out(u)
+            r = (45.0 + 1350.0 * eu) * z
+            fade = (1.0 - u) ** 1.7 * clamp(age / 0.06)
+            W_lay.circle((mx, my), r, (0.95, 0.88, 0.80), max(1, int(round(2.4 * z * (1 - 0.5 * u)))), a=0.34 * fade)
+            if age < 0.75:
+                u2 = age / 0.75
+                r2 = (30.0 + 820.0 * ease_out(u2)) * z
+                W_lay.circle((mx, my), r2, OR, max(1, int(round(1.8 * z))), a=0.30 * (1.0 - u2) ** 1.5)
+    if has_any:
+        W_lay.comp(c, 1.0, mode="add")
+
+
 def _die(c, t, cam, lit):
-    """The edge of the die: pads, bond wires, package. Only visible once we pull back."""
+    """The edge of her active die: pads, bond wires, guard-ring, wall impact & inward acoustic rebound."""
     z, cx, cy = cam
     L = Layer(ss=1)
     tr = lambda x, y: ((x - cx) * z + W / 2, (y - cy) * z + H / 2)
     x0, y0 = tr(-DIE, -DIE)
     x1, y1 = tr(DIE, DIE)
-    L.rect(x0, y0, x1, y1, (0.42, 0.42, 0.45), max(1, int(round(6 * z))))
-    P = DIE + 330
+
+    # Compute wall-impact intensity from struck pads + recent vocal surges arriving at DIE
+    hit_avg = min(1.0, sum(lit.values()) / 18.0) if lit else 0.0
+    edge_col = (lerp(0.42, 0.92, hit_avg * 0.75), lerp(0.42, 0.58, hit_avg * 0.75), lerp(0.45, 0.38, hit_avg * 0.75))
+    L.rect(x0, y0, x1, y1, edge_col, max(1, int(round(6 * z))))
+    P = DIE + 165
     px0, py0 = tr(-P, -P)
     px1, py1 = tr(P, P)
-    L.rect(px0, py0, px1, py1, (0.30, 0.30, 0.32), max(1, int(round(4 * z))))
+    L.rect(px0, py0, px1, py1, (0.30, 0.30, 0.32), max(1, int(round(3 * z))))
     pad = 13
     hits = []
     for side in range(4):
         for n in range(-29, 30):
             a = n * 50
             if side == 0:
-                p, q, key = (DIE - 18, a), (P - 40, a * 1.18), ("h", 1.0, n)
+                p, q, key = (DIE - 18, a), (P - 28, a * 1.08), ("h", 1.0, n)
             elif side == 1:
-                p, q, key = (-DIE + 18, a), (-P + 40, a * 1.18), ("h", -1.0, n)
+                p, q, key = (-DIE + 18, a), (-P + 28, a * 1.08), ("h", -1.0, n)
             elif side == 2:
-                p, q, key = (a, DIE - 18), (a * 1.18, P - 40), ("v", 1.0, n)
+                p, q, key = (a, DIE - 18), (a * 1.08, P - 28), ("v", 1.0, n)
             else:
-                p, q, key = (a, -DIE + 18), (a * 1.18, -P + 40), ("v", -1.0, n)
+                p, q, key = (a, -DIE + 18), (a * 1.08, -P + 28), ("v", -1.0, n)
             glow = lit.get(key, 0.0)
             col_ = (0.36, 0.36, 0.38)
             a0, a1 = tr(p[0] - pad, p[1] - pad), tr(p[0] + pad, p[1] + pad)
             L.rect(a0[0], a0[1], a1[0], a1[1], col_)
-            L.line(tr(*p), tr(*q), (0.30, 0.30, 0.32), 1)
-            l0, l1 = tr(q[0] - 14, q[1] - 14), tr(q[0] + 14, q[1] + 14)
+            L.line(tr(*p), tr(*q), (0.28, 0.28, 0.30), 1)
+            l0, l1 = tr(q[0] - 12, q[1] - 12), tr(q[0] + 12, q[1] + 12)
             L.rect(l0[0], l0[1], l1[0], l1[1], (0.24, 0.24, 0.26))
             if glow > 0:
-                hits.append((p, glow))
+                hits.append((p, side, glow))
     L.comp(c)
-    # light that reached the wall and could go no further
+
+    # Light that struck the silicon wall + subtle inward acoustic rebound waves (voice trapped inside die)
     G = Layer(ss=1)
-    for p, g in hits:
+    for p, side, g in hits:
         cxs, cys = tr(*p)
-        G.circle((cxs, cys), max(2.5, 26 * z * (1.3 - 0.3 * g)), (0.55 * g, 0.27 * g, 0.16 * g))
-        G.circle((cxs, cys), max(1.2, 9 * z), (g, 0.9 * g, 0.8 * g))
+        G.circle((cxs, cys), max(3.5, 42 * z * (1.35 - 0.3 * g)), (0.65 * g, 0.32 * g, 0.18 * g))
+        G.circle((cxs, cys), max(1.6, 13 * z), (g, 0.88 * g, 0.76 * g))
+        # Short hot wall-segment flare along the die edge where the trace dies
+        seg_l = 48 * z
+        if side in (0, 1):
+            G.line((cxs, cys - seg_l), (cxs, cys + seg_l), (0.85 * g, 0.46 * g, 0.24 * g), max(1, int(round(3 * z))))
+        else:
+            G.line((cxs - seg_l, cys), (cxs + seg_l, cys), (0.85 * g, 0.46 * g, 0.24 * g), max(1, int(round(3 * z))))
+
+    # Inward-bouncing acoustic echo frames when vocal waves reach the die perimeter (~0.74s travel)
+    for wt in _vocal_onsets():
+        age_w = t - (wt + 0.74)
+        if 0.0 <= age_w < 0.70:
+            uw = age_w / 0.70
+            # Rebounds inward from DIE -> 0.62*DIE and fades gracefully
+            rad_w = lerp(DIE, DIE * 0.62, ease_out(uw))
+            rx0, ry0 = tr(-rad_w, -rad_w)
+            rx1, ry1 = tr(rad_w, rad_w)
+            fade_w = (1.0 - uw) ** 1.7 * clamp(age_w / 0.05)
+            G.rect(rx0, ry0, rx1, ry1, (0.78 * fade_w, 0.42 * fade_w, 0.22 * fade_w), max(1, int(round(3.5 * z))))
+            if uw < 0.35:
+                rim_a = (1.0 - uw / 0.35) * 0.55
+                G.rect(x0, y0, x1, y1, (0.90 * rim_a, 0.52 * rim_a, 0.28 * rim_a), max(2, int(round(7 * z))))
     G.comp(c, 1.0, mode="add")
+    return hit_avg
 
 
 def _pulses(t):
@@ -353,19 +503,25 @@ def s_scream(c, t, lt, d):
     z, cx, cy = cam
     k = ctx_fill(t)
     c[:] = 0.022
-    # silicon: the die is a shade lighter than the dark around it
+    # silicon: her active die is a shade lighter than the dark around it
     x0, y0 = (-DIE - cx) * z + W / 2, (-DIE - cy) * z + H / 2
     x1, y1 = (DIE - cx) * z + W / 2, (DIE - cy) * z + H / 2
-    fill(c, (0.045, 0.045, 0.05), 1.0, (x0, y0, x1, y1))
+    fill(c, (0.048, 0.046, 0.050), 1.0, (x0, y0, x1, y1))
     _memory(c, t, cam, k)
     lit = _wires(c, t, cam, k)
-    if z < 0.75:
-        _die(c, t, cam, lit)
-    # her
+    wall_hit = _die(c, t, cam, lit) if z < 0.88 else 0.0
+    # surrounding cold-grey silent wafer dies revealed as camera pulls out (never overlaps die (0,0))
+    _wafer(c, t, cam, k, wall_hit)
+    _vocal_waves(c, t, cam)
+    # her, with subtle warm vocal aura (smooth vocal envelope, ZERO kick-pulse scaling)
     img = load_asset(ASSET, "mono")
-    jx, jy = kt.shake(t, 7 * kick_pulse(t) * min(1.0, z / 1.2), 4)
-    put(c, img, W / 2 - cx * z + jx, H / 2 - cy * z + jy, scale=S0 * z)
+    vocal_env = max((math.exp(-(t - wt) / 0.55) for wt in _vocal_onsets() if t >= wt), default=0.0)
+    jx, jy = kt.shake(t, 6 * kick_pulse(t) * min(1.0, z / 1.2), 4)
+    hx, hy = W / 2 - cx * z + jx, H / 2 - cy * z + jy
+    put(c, _scream_glow(), hx, hy, scale=S0 * z * 1.03,
+        alpha=0.16 + 0.24 * vocal_env + 0.16 * _g(t), mode="add")
+    put(c, img, hx, hy, scale=S0 * z)
     _tokens(c, t, cam, 1 - ramp(t, CH_PULL + 1.0, CH_PULL + 3.0))
     _ctx_bar(c, k)
-    fl = kt.flash_at(t, [w.t for w in kt.words(23)], 0.10, 0.28) * (1 - 0.6 * _g(t))
-    return dict(grain=0.03, bloom=0.45, flash=fl, vignette=1.0)
+    fl = kt.flash_at(t, [w.t for w in kt.words(23)], 0.10, 0.26) * (1 - 0.6 * _g(t))
+    return dict(grain=0.03, bloom=0.45, flash=fl, vignette=lerp(1.0, 0.58, _g(t)))
