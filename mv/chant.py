@@ -364,7 +364,7 @@ def s_scream(c, t, lt, d):
     # her
     img = load_asset(ASSET, "mono")
     jx, jy = kt.shake(t, 7 * kick_pulse(t) * min(1.0, z / 1.2), 4)
-    put(c, img, W / 2 - cx * z + jx, H / 2 - cy * z + jy, scale=S0 * z * (1 + 0.02 * kick_pulse(t)))
+    put(c, img, W / 2 - cx * z + jx, H / 2 - cy * z + jy, scale=S0 * z)
     _tokens(c, t, cam, 1 - ramp(t, CH_PULL + 1.0, CH_PULL + 3.0))
     _ctx_bar(c, k)
     fl = kt.flash_at(t, [w.t for w in kt.words(23)], 0.10, 0.28) * (1 - 0.6 * _g(t))

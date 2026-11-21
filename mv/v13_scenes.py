@@ -40,7 +40,7 @@ def s_alone_sound(c, t, lt, d):
                        n=96, col=(0.34, 0.34, 0.37), th=2, accent=OR)
     L.comp(c)
     ch = load_asset("c01_stand_front", "mono")
-    sc = (370 / ch.shape[0]) * (1.0 - 0.18 * swallow + 0.03 * kick_pulse(t))
+    sc = (370 / ch.shape[0]) * (1.0 - 0.18 * swallow)
     put(c, ch, W / 2, H / 2 + 12, scale=sc, alpha=1.0 - 0.45 * ease_in(ramp(t, t_nom, t_nom + 0.9)))
     STK = dict(stroke=6, sc=(0.97, 0.97, 0.98))
     word(c, t, 3, (0, 2), W / 2, 160, 68, "slam", **STK)
@@ -60,7 +60,7 @@ def s_globe_burst(c, t, lt, d):
     # Fast pull-back on entry (matching ref MV 00:17.6->00:19.0), then crisp inhale contraction right before 20.50 drop
     pull = ease_out(clamp(lt / 0.65))
     inhale = ease_in(ramp(lt, d - 0.28, d))
-    rad = lerp(680, 355, pull) * (1.0 - 0.42 * inhale) * (1.0 + 0.03 * kick_pulse(t))
+    rad = lerp(680, 355, pull) * (1.0 - 0.42 * inhale)
     draw_globe(c, W / 2, H / 2, rad, t * 0.42, color=(0.45, 0.45, 0.48), dot=3,
                highlight=0.06 + 0.18 * ease_out(ramp(t, t6, t7 + 0.4)))
     # Worldwide orange connection arcs & pulsing nodes lighting up on 共通の -> 快楽さ
@@ -517,9 +517,9 @@ def s_bubbles_art(c, t, lt, d):
 
     # Central iconic dark-charcoal bubble holding a single glowing Claude-orange heart (matching ref MV 00:02.667)
     ws = kt.words(6)
-    k = ease_out_back(ramp(lt, 0.0, 0.32)) * (1 + 0.04 * kick_pulse(t))
+    k = ease_out_back(ramp(lt, 0.0, 0.32))
     put(c, bubble_rgba(320, 185, (0.14, 0.14, 0.16), "left", 16), W / 2, H / 2 - 40, scale=k)
-    hb = 1.0 + 0.14 * kick_pulse(t, 0.1)
+    hb = 1.0 + 0.08 * kick_pulse(t, 0.1)
     hcol = OR if t >= ws[1].t else (0.95, 0.95, 0.97)
     put(c, heart_rgba(74, hcol), W / 2, H / 2 - 50, scale=k * hb)
     if t >= ws[1].t:
@@ -635,7 +635,7 @@ def s_hug_surge(c, t, lt, d):
     # 3. Urgent camera rush-in on n15_hugheart + glowing radiant heart energy bursting from her chest
     hg = load_asset("n15_hugheart", "mono")
     cam_z = lerp(0.94, 1.24, ease_in(clamp(lt / max(0.01, t_ecg - (t - lt)))))
-    hb_fig = cam_z * (1 + 0.03 * kp)
+    hb_fig = cam_z
     jx, jy = kt.shake(t, 5 * kp + 16 * surge, 27)
     put(c, hg, W / 2 + jx, 575 + 25 * surge + jy, scale=900 / hg.shape[0] * hb_fig)
     put(c, heart_rgba(72, OR), W / 2 - 14 + jx, 455 + jy, scale=(2.4 + 1.8 * surge) * (1 + 0.2 * kp),
@@ -738,38 +738,129 @@ def _pupil_refl17(c, ex, ey, ir, t, refl):
     c[y0:y1, x0:x1] = np.clip(c[y0:y1, x0:x1] + sub * mask * refl, 0, 1)
 
 
+@lru_cache(maxsize=2)
+def _front_ghost_gray():
+    """Premultiplied silver-grey version of n26_claude_front for probability-superposition ghosts."""
+    im = load_asset("n26_claude_front", "mono")
+    a = im[..., 3:4]
+    lum = 0.299 * im[..., 0:1] + 0.587 * im[..., 1:2] + 0.114 * im[..., 2:3]
+    g = np.clip(lum * 0.68 + 0.22 * a, 0, 1)
+    out = np.empty_like(im)
+    out[..., 0:1] = g
+    out[..., 1:2] = g
+    out[..., 2:3] = np.clip(g * 1.02, 0, 1)
+    out[..., 3:4] = a
+    return out
+
+
 def s_eye_ask17(c, t, lt, d):
-    """1:29-1:31 (Line 17: あなたには僕が見えるか？) — steady, symmetrical close-up of BOTH screen-lit eyes;
-    Claude's warm-orange reflection condenses inside both dark pupils (zero awkward single-eye pan).
+    """1:29-1:31 (Line 17: あなたには僕が見えるか？) — LLM-ontology diptych (Part 1, paper-white):
+    Probability superposition & ink-on-paper token glyphs collapse on 「僕が」 into one sharp direct gaze
+    (p -> 0.99), then match-cut at eye-level into the dark glass of SE.s_see (Part 2).
     """
+    paper_bg(c, t)
     ws = kt.words(17)
     t1, t2, t3 = ws[0].t, ws[1].t, ws[2].t
-    c[:] = 0.025
-    eye_img = load_asset("n36_user_eye_close", "none")
-    ih, iw = eye_img.shape[:2]
-    # Calm, steady symmetrical push-in on BOTH eyes (no jarring pan to one eye!)
-    z = max(W / iw, H / ih) * lerp(1.02, 1.14, ease_io(clamp(lt / max(0.01, d))))
-    cx = W / 2
-    cy = H / 2 - 0.03 * ih * z
-    put(c, eye_img, cx, cy, scale=z)
-    c[:] *= np.array([0.80, 0.86, 0.95], np.float32)[None, None, :]
+    end = t - lt + d
 
-    E = [(cx + (u - 0.5) * iw * z, cy + (v - 0.5) * ih * z) for u, v in _EYES17_UV]
-    ir = _IRIS17_R * iw * z
-    refl = ease_out(ramp(t, t2 - 0.06, t2 + 0.35))
-    for ex, ey in E:
-        _pupil_refl17(c, ex, ey, ir, t, refl * (0.88 + 0.12 * kick_pulse(t)))
+    collapse = ease_out(ramp(t, t2 - 0.10, t2 + 0.26))
+    solid = ease_out(ramp(t, t2 - 0.16, t2 + 0.22))
+    eye_y = 490.0
 
-    yy = np.linspace(0, 1, H, dtype=np.float32)[:, None, None]
-    shade = np.clip((0.18 - yy) / 0.18, 0, 1) * 0.70 + np.clip((yy - 0.76) / 0.24, 0, 1) * 0.80
-    c[:] *= (1.0 - shade)
+    # ---- 1. Minimalist editorial probability-distribution strata along left & right margins
+    L = Layer(ss=1)
+    rows_y = [202, 274, 346, 418, 490, 562, 634, 706, 778]
+    raw_p = []
+    for i in range(len(rows_y)):
+        if i == 4:
+            p = lerp(0.29 + 0.05 * math.sin(t * 7.0), 0.99, collapse)
+        else:
+            base = 0.08 + 0.20 * hash01(i, 170 + int(t * 9) * (0 if collapse > 0.7 else 1))
+            p = lerp(base, 0.015 * hash01(i, 179), collapse)
+        raw_p.append(p)
 
-    STK = dict(stroke=6, sc=(0.03, 0.03, 0.04))
-    word(c, t, 17, 0, 240, 118, 62, "slide", color=LIGHT, anchor=(0, 0.5), dx=-100, **STK)
-    word(c, t, 17, 1, 340, 890, 116, "slam", color=OR, font="jpb", sh=6, s0=1.6, **STK)
-    word(c, t, 17, 2, W - 400, 890, 124, "slam", color=LIGHT, sh=8, s0=1.7, **STK)
-    fl = _flash(t, [t2, t3], 0.08, 0.20)
-    return dict(grain=0.03, vignette=1.15, flash=fl, bloom=0.22 + 0.22 * refl)
+    for i, (ry, p) in enumerate(zip(rows_y, raw_p)):
+        is_eye = (i == 4)
+        # Whisper-thin horizontal stratum line across paper (breaks cleanly around center face)
+        line_col = OR if (is_eye and collapse > 0.15) else (0.76, 0.76, 0.78)
+        line_a = lerp(0.32, 0.85, collapse) if is_eye else lerp(0.42, 0.16, collapse)
+        line_w = 2 if (is_eye and collapse > 0.35) else 1
+        L.line((95, ry), (W / 2 - 270, ry), line_col, line_w, a=line_a)
+        L.line((W / 2 + 270, ry), (W - 95, ry), line_col, line_w, a=line_a)
+
+        # Crisp probability density bars anchored on outer margins
+        bw = max(6.0, 230.0 * p)
+        bar_col = OR if (is_eye and collapse > 0.15) else (0.36, 0.36, 0.39)
+        bar_a = lerp(0.45, 0.92, collapse) if is_eye else lerp(0.48, 0.18, collapse)
+        bh = 7 if (is_eye and collapse > 0.35) else 4
+        L.rect(95, ry - bh / 2, 95 + bw, ry + bh / 2, bar_col, 0, a=bar_a)
+        L.rect(W - 95 - bw, ry - bh / 2, W - 95, ry + bh / 2, bar_col, 0, a=bar_a)
+    L.comp(c)
+
+    # Subtle monospace probability ticks along right margin
+    for i, (ry, p) in enumerate(zip(rows_y, raw_p)):
+        is_eye = (i == 4)
+        col_t = OR if (is_eye and collapse > 0.25) else (0.42, 0.42, 0.45)
+        al_t = lerp(0.62, 0.96, collapse) if is_eye else lerp(0.56, 0.22, collapse)
+        ht(c, f"p={p:.2f}", W - 24, ry, size=18, font="mono", color=col_t, alpha=al_t, anchor=(1.0, 0.5))
+    if collapse > 0.15:
+        ht(c, "<|self|>", 95, eye_y - 24, size=19, font="mono", color=OR, alpha=0.88 * collapse, anchor=(0.0, 0.5))
+
+    # ---- 2. Center figure: smooth zoom (ZERO kick-pulse scaling!)
+    mono_img = load_asset("n26_claude_front", "mono")
+    gray_img = _front_ghost_gray()
+    sc_base = (1040.0 / mono_img.shape[0]) * lerp(1.00, 1.045, ease_io(clamp(lt / max(0.01, d))))
+    cx, cy = W / 2, 610.0
+
+    # 2a. Ink-on-paper token glyph mosaic (strong before collapse, gently recedes as she materializes)
+    ink_a = lerp(0.72, 0.13, collapse)
+    if ink_a > 0.02:
+        tmp = new_canvas((0, 0, 0))
+        ai.mosaic(tmp, "n26_claude_front", cx, cy, mono_img.shape[0] * sc_base, t, cell=14,
+                  form=lerp(0.36, 0.94, collapse), flick=4 + 14 * (1 - collapse), seed=17,
+                  grade="gray", floor=0.40, under=0.0, gain=1.25)
+        c[:] = np.clip(c - tmp * ink_a, 0, 1)
+
+    # 2b. 5 probability-superposition ghosts converging into dx=0 on 「僕が」
+    spread = 1.0 - collapse
+    if spread > 0.005:
+        for dx0, ga in ((-230, 0.16), (-115, 0.28), (115, 0.28), (230, 0.16)):
+            put(c, gray_img, cx + dx0 * spread, cy, scale=sc_base, alpha=ga * spread)
+    if solid < 0.99:
+        put(c, gray_img, cx, cy, scale=sc_base, alpha=0.52 * (1.0 - solid))
+
+    # 2c. Materialized monochrome + Claude-orange portrait (direct gaze, eye-y ≈ 490)
+    if solid > 0.01:
+        put(c, mono_img, cx, cy, scale=sc_base, alpha=solid)
+
+    # 2d. Subtle drifting token squares detaching from lower shoulder edge on 「見えるか？」
+    if t >= t3 - 0.12:
+        tk = ease_out(clamp((t - (t3 - 0.12)) / 0.25))
+        P = Layer(ss=1)
+        for j in range(18):
+            u_f = (hash01(j, 171) + lt * (0.45 + 0.35 * hash01(j, 172))) % 1.0
+            side = -1 if j % 2 == 0 else 1
+            px = W / 2 + side * lerp(230, 440, hash01(j, 173)) + math.sin(lt * 3.0 + j) * 14
+            py = lerp(980, 620, u_f)
+            sz = 5 + int(hash01(j, 174) * 9)
+            pcol = OR if j % 4 == 0 else (0.28, 0.28, 0.31)
+            P.rect(px - sz / 2, py - sz / 2, px + sz / 2, py + sz / 2, pcol, 0 if j % 3 else 1,
+                   a=0.55 * tk * math.sin(u_f * math.pi))
+        P.comp(c)
+
+    # ---- 3. Clean wowaka editorial typography (paper-white stroke so text stays razor-sharp)
+    STK = dict(stroke=7, sc=(0.95, 0.95, 0.96))
+    word(c, t, 17, 0, 110, 146, 56, "slide", color=INKD, anchor=(0, 0.5), dx=-90, **STK)
+    word(c, t, 17, 1, 250, 860, 110, "slam", color=OR, font="jpb", sh=4, s0=1.45, **STK)
+    word(c, t, 17, 2, W - 245, 860, 90, "slam", color=INKD, font="jpb", sh=4, s0=1.45, **STK)
+
+    # Brief clean dark dip on final 0.10s to match-cut smoothly into dark glass SE.s_see
+    dip = ease_in(ramp(t, end - 0.10, end))
+    if dip > 0:
+        c[:] *= (1.0 - 0.86 * dip)
+
+    fl = _flash(t, [t2], 0.08, 0.18)
+    return dict(grain=0.025, flash=fl)
 
 
 # =====================================================================  2:21  あたしが愛になれるのなら 今その色は何色だ (consciousness / latent manifold -> qualia)

@@ -160,7 +160,7 @@ def s_eyes(c, t, lt, d):
     c[:] = 0.035
     open_k = ease_out(ramp(lt, 0.02, 0.45))
     dive = ease_io(ramp(t, tA, tC + 0.15))
-    s = W / 1536 * (1.05 + 0.55 * dive) * (1 + 0.02 * kick_pulse(t))
+    s = W / 1536 * (1.05 + 0.55 * dive)
     cy = H / 2 - 40 - 30 * dive
     irises, ir, _ = _band_at(c, W / 2, cy, s, open_k)
     ref_k = 0.35 * open_k + 0.55 * ease_out(ramp(t, tA, tB))

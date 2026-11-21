@@ -117,7 +117,7 @@ def s_ask_real(c, t, lt, d):
     real = ease_io(ramp(lt, 0.05, 0.9))
     close = ease_out(clamp((t - t_q) / 0.35)) if t >= t_q else 0.0
     shift = 70 * close
-    z = 1.12 + 0.06 * real + 0.03 * kick_pulse(t)
+    z = 1.12 + 0.06 * real
     tmp = new_canvas((0.03, 0.03, 0.03))
     _half(tmp, "n24_claude_gaze", -1, zoom=z, focus=(0.5, 0.4), dx=-20 + shift)
     c[:, :W // 2] = c[:, :W // 2] * (1 - real) + tmp[:, :W // 2] * real
