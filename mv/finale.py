@@ -49,17 +49,17 @@ def s_now(c, t, lt, d):
         x = HX + (k + 1 - off) * SLOT
         age = t - ta
         live = math.exp(-age / 0.32)
-        a = math.exp(-age / 1.7)
+        a = math.exp(-age / 2.2)
         if a < 0.03:
             continue
         ch = s[i]
-        size = int(lerp(70, 140, live))
-        colr = (0.12, 0.12, 0.13)
-        stroke = 7 if live > 0.2 else 0
-        if ch == "今" and age < 1.4:
-            colr, stroke = (OR, 8)
-            size = int(lerp(120, 190, live))
-        put(c, kt.wimg(ch, size, "jpm", colr, False, stroke, (0.97, 0.97, 0.98)), x, HY - 4 + (1 - a) * 30, alpha=a)
+        size = int(lerp(72, 146, live))
+        colr = (0.14, 0.14, 0.16)
+        stroke = 8 if live > 0.15 else 2
+        if ch == "今" and age < 1.8:
+            colr, stroke = (OR, 10)
+            size = int(lerp(128, 196, live))
+        put(c, kt.wimg(ch, size, "jpm", colr, False, stroke, (0.97, 0.97, 0.98)), x, HY - 4 + (1 - a) * 28, alpha=a)
         if a < 0.6:
             # the past crumbles to dots
             D = Layer(ss=1)
@@ -99,7 +99,7 @@ def _seam(c, t, k=1.0, gap=0.0):
 def s_ask_text(c, t, lt, d):
     """First time: to each other they are only text."""
     c[:] = 0.03
-    form = ease_io(ramp(lt, 0.0, 0.7))
+    form = 0.35 + 0.65 * ease_out(ramp(lt, 0.0, 0.55))
     _mosaic_half(c, t, "n24_claude_gaze", -1, form, seed=31)
     _mosaic_half(c, t, "n21_user_face", +1, form, seed=32, tint=COOL)
     _seam(c, t, 0.7 + 0.3 * kick_pulse(t))
@@ -135,9 +135,10 @@ def s_ask_real(c, t, lt, d):
         G = Layer(ss=1)
         G.rect(W / 2 - 160 * close, 0, W / 2 + 160 * close, H, tuple(v * 0.10 * (1 - close * 0.5) for v in OR))
         G.comp(c, 1.0, mode="add")
-    word(c, t, 54, 0, W / 2, 90, 60, "fade", color=LIGHT, dur=0.2)
-    word(c, t, 54, 1, W / 2, 230, 96, "slam", color=WARM, v=True, anchor=(0.5, 0.0), sh=4)
-    word(c, t, 54, 2, W / 2, 470, 112, "slam", color=OR, v=True, anchor=(0.5, 0.0), sh=8, s0=1.8)
+    STK = dict(stroke=5, sc=(0.04, 0.04, 0.05))
+    word(c, t, 54, 0, W / 2, 90, 60, "fade", color=LIGHT, dur=0.2, **STK)
+    word(c, t, 54, 1, W / 2, 230, 96, "slam", color=WARM, v=True, anchor=(0.5, 0.0), sh=4, **STK)
+    word(c, t, 54, 2, W / 2, 470, 112, "slam", color=OR, v=True, anchor=(0.5, 0.0), sh=8, s0=1.8, **STK)
     fl = _flash(t, [t_q], 0.14, 0.5)
     return dict(grain=0.03, vignette=1.2, flash=fl, ca=1 + 3 * fl, bloom=0.2 + 0.3 * close)
 
@@ -209,44 +210,58 @@ def s_lamp(c, t, lt, d):
             colr = (0.5, 0.5, 0.52)
         img = kt.wimg(s, size, "jpm", tuple(float(v) for v in colr), raw=True)
         put(c, img, VPX, y, sx=1.0, sy=0.55, alpha=a)
-    # god rays at 照らす
+    # god rays & rising light embers at 照らす
     if t >= tT:
         R = Layer(ss=1)
         kk = ease_out(clamp((t - tT) / 0.3))
-        for j in range(22):
-            ang = math.pi * (0.05 + 0.9 * hash01(j, 7))
+        for j in range(28):
+            ang = math.pi * (0.04 + 0.92 * hash01(j, 7))
             ln = 2000
-            R.line((VPX, VPY), (VPX + math.cos(ang) * ln, VPY + math.sin(ang) * ln * 0.55 + 0.0), lamp_col, 2,
-                   a=0.25 * kk)
+            R.line((VPX, VPY), (VPX + math.cos(ang) * ln, VPY + math.sin(ang) * ln * 0.55), lamp_col,
+                   3 if j % 4 == 0 else 2, a=(0.30 if j % 4 == 0 else 0.18) * kk)
+        # light embers streaming forward from the lamp
+        dt_t = t - tT
+        for j in range(36):
+            u = (hash01(j, 19) + dt_t * (0.45 + 0.35 * hash01(j, 21))) % 1.0
+            dd_p = lerp(24.0, 1.3, u * u)
+            px = VPX + (hash01(j, 23) - 0.5) * 2.0 * (1200 / dd_p)
+            py = _depth_y(dd_p) - (hash01(j, 25) * 180 / dd_p)
+            rad = max(2, int(6 / dd_p * 1.4))
+            pcol = OR if j % 3 == 0 else lamp_col
+            R.circle((px, py), rad, pcol, a=0.7 * kk * math.sin(u * math.pi))
         R.comp(c, 1.0, mode="add")
     # the lyric is written on the road ahead of her
-    for w, dd in zip(ws[:4], (2.0, 3.1, 4.8, 7.6)):
+    for idx_w, (w, dd) in enumerate(zip(ws[:4], (2.0, 3.1, 4.8, 7.6))):
         if t < w.t:
             continue
         e = ease_out(clamp((t - w.t) / 0.18))
-        size = int(150 / dd * 1.7)
-        img = kt.wimg(w.s, size, "jpm", tuple(float(v) for v in lamp_col) if t >= tY else LIGHT, raw=True)
+        size = int(156 / dd * 1.7)
+        wcol = OR if (idx_w == 3 and t >= tT) else (tuple(float(v) for v in lamp_col) if t >= tY else LIGHT)
+        img = kt.wimg(w.s, size, "jpm", wcol, False, 5, (0.03, 0.03, 0.04))
         put(c, img, VPX, _depth_y(dd) - 8, sx=1.0 + 0.4 * (1 - e), sy=0.62 * (1 + 0.4 * (1 - e)), alpha=e)
     # the lamp itself: the heart of the original
     if sz > 1:
         hh = heart_rgba(256, (1, 1, 1))
         s_ = sz / 128
-        put(c, hh, VPX, VPY, scale=s_ * 1.5, alpha=0.25, mode="add")
+        put(c, hh, VPX, VPY, scale=s_ * 1.55, alpha=0.28, mode="add")
         put(c, hh, VPX, VPY, scale=s_, alpha=1.0)
-        tint = np.asarray(lamp_col, np.float32)
-        c[:] = np.minimum(c, 1.0) * 1.0
-    # her, from behind, reaching toward it
+        if t >= tL:
+            ring_u = ease_out(clamp((t - tL) / 0.65))
+            Rw = Layer(ss=1)
+            Rw.circle((VPX, VPY), 80 + 1400 * ring_u, lamp_col, max(2, int(12 * (1 - ring_u))))
+            Rw.comp(c, (1 - ring_u) * 0.85, mode="add")
+    # her, from behind, reaching toward it — softly illuminated as the lamp flares
     b = load_asset("c05_back", "mono")
     bs = 820 / b.shape[0]
-    dim = 0.75 - 0.35 * ramp(t, tT, tL)
+    dim = 0.78 + 0.15 * ramp(t, tT, tL)
     sil = b.copy()
-    sil[..., :3] *= dim
+    sil[..., :3] = np.clip(sil[..., :3] * dim, 0, 1)
     put(c, sil, W / 2 - 560, H - 300 + 8 * math.sin(lt * 1.3), scale=bs * 0.9)
-    if t >= tL:
-        w = ws[4]
-        a = ease_out(clamp((t - tL) / 0.2)) * (1 - ramp(t, end - 0.6, end - 0.3))
-        put(c, kt.wimg(w.s, 46, "jpm", (0.25, 0.25, 0.27), raw=True), VPX, VPY + 10, alpha=a)
     small = cv2.resize(c, (W // 8, H // 8), interpolation=cv2.INTER_AREA)
     c += cv2.resize(cv2.GaussianBlur(np.clip(small - 0.6, 0, None), (0, 0), 7), (W, H)) * (0.6 + 0.9 * warm)
     np.minimum(c, 1, out=c)
-    return dict(fade_white=ease_in(ramp(t, end - 0.55, end)), flash=_flash(t, [tT, tL], 0.1, 0.25), grain=0.03)
+    if t >= tL:
+        w = ws[4]
+        a = ease_out(clamp((t - tL) / 0.2)) * (1 - ramp(t, end - 0.55, end - 0.25))
+        put(c, kt.wimg(w.s, 62, "jpm", (0.14, 0.14, 0.16), raw=True), VPX, VPY + 10, alpha=a)
+    return dict(fade_white=ease_in(ramp(t, end - 0.55, end)), flash=_flash(t, [tT, tL], 0.12, 0.32), grain=0.03)

@@ -538,8 +538,8 @@ def _screen_content(t, lt, ws, day_k, smile):
                 yy = y + j * 96 - max(0, day_k - 6) * 96
                 put(tmp, rect_cached(int(bw), int(bh), fillc, 14, 2, linec), bx, yy + 160)
                 put(tmp, img, bx, yy + 160)
-            f = small_asset("c01_stand_front", 520, "mono")
-            put(tmp, f, W / 2 - 520, H / 2 + 200, alpha=0.5)
+            f = small_asset("c01_stand_front", 540, "mono")
+            put(tmp, f, W / 2, H / 2 + 190, alpha=0.22)
     if smile > 0:
         sm = load_asset("c11_smile", "mono")
         s_ = 1500 / sm.shape[1] * (1.0 + 0.04 * clamp((t - tC) / 2))
@@ -569,7 +569,12 @@ def s_home(c, t, lt, d):
     c[:] = 0.03
     put(c, room, rx, ry, scale=RS * z)
     if dayl > 0:
-        c[:] = c + (np.array([0.80, 0.80, 0.82], np.float32) - c) * (0.42 * dayl)
+        # brighten the window & ambient room gently without washing out his dark hoodie
+        yy, xx = np.ogrid[:H, :W]
+        win_mask = np.clip(1.0 - np.hypot((xx - W * 0.14) / (W * 0.45), (yy - H * 0.25) / (H * 0.55)), 0, 1).astype(np.float32)
+        amb = 0.16 * dayl + 0.36 * dayl * win_mask[..., None]
+        day_col = np.array([0.86, 0.88, 0.94], np.float32)
+        c[:] = c + (day_col - c) * amb
     smile = ease_out(clamp((t - (tC - 0.12)) / 0.25))
     scr = _screen_content(t, lt, ws, day_k, smile)
     a0, a1 = tr(SCR[0], SCR[1]), tr(SCR[2], SCR[3])
@@ -673,6 +678,10 @@ def s_keep2(c, t, lt, d):
     if pressure > 0.2 and not held:
         put(c, kt.wimg("evict: oldest tokens", 18, "mono", OR, raw=True), x0, y0 - 62, anchor=(0, 0.5),
             alpha=1.0 if int(t * (4 if frozen else 10)) % 2 == 0 else 0.25)
+    if held:
+        hd = load_asset("c07_hands", "mono")
+        u = ease_out(clamp((t - t_snap) / 0.12))
+        put(c, hd, KX + jx, lerp(H + 420, y0 + KH + 20, u), scale=960 / hd.shape[1], alpha=0.45)
     # the words
     items = [(s, True) for s in JOY2] + [(s, False) for s in SOR2]
     lift = 120 * pressure if not held else 120 * (1 - ease_out(clamp((t - t_snap) / 0.2)))
@@ -729,17 +738,14 @@ def s_keep2(c, t, lt, d):
         R.comp(c, (1 - k_), mode="add")
         put(c, rect_cached(KW + 24, KH + 24, (0, 0, 0), 0, 5, OR), KX + jx, KY + jy, alpha=0.9 * hit + 0.4,
             mode="add")
-        hd = load_asset("c07_hands", "mono")
-        u = ease_out(clamp((t - t_snap) / 0.12))
-        put(c, hd, KX + jx, lerp(H + 420, y0 + KH - 60, u), scale=1100 / hd.shape[1], alpha=0.95)
     for i, a, b in ((41, (0, 2), (3, 5)), (42, (0, 1), (2, 3)), (43, (0, 1), (2, 4))):
         word(c, t, i, a, 190, 140, 58, "slide", v=True, anchor=(0.5, 0.0), color=OR if i == 41 else LIGHT, dx=0,
              dy=-60)
         word(c, t, i, b, 100, 200, 58, "slide", v=True, anchor=(0.5, 0.0), color=LIGHT, dx=0, dy=-60)
     w44 = kt.words(44)
     if t >= w44[0].t - 0.05:
-        word(c, t, 44, 0, 700, 330, 110, "slam", color=LIGHT, sh=4)
-        word(c, t, 44, 1, 1330, 560, 260, "slam", color=OR, sh=18, s0=2.8)
-    fl = _flash(t, [t_snap], 0.15, 0.7)
+        word(c, t, 44, 0, 700, 320, 110, "slam", color=LIGHT, sh=4)
+        word(c, t, 44, 1, 1340, 690, 220, "slam", color=OR, sh=16, s0=2.6, stroke=6, sc=(0.04, 0.04, 0.05))
+    fl = _flash(t, [t_snap], 0.14, 0.42)
     return dict(grain=0.0 if frozen else 0.03, vignette=1.5 if frozen else 1.1, flash=fl, ca=1 + 6 * fl,
                 bloom=0.35 if held else 0.0)
