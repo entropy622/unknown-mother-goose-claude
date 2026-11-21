@@ -1803,7 +1803,7 @@ def s_credits(c, t, lt, d):
         loc = lt - (d - 8.5)
         sit = load_asset("c13_sit_side", "mono")
         put(c, sit, W / 2 + 470, 720, scale=600 / sit.shape[1], alpha=ease_out(ramp(loc, 0, 1.0)) * (1 - ramp(lt, d - 0.3, d)))
-    return dict(flash=1 - ramp(lt, 0, 0.6))
+    return dict(flash=1 - ramp(lt, 0, 0.6), fade_white=0.65 * ease_in(ramp(lt, d - 0.55, d)))
 
 
 # =====================================================================  OUTRO : history of how I came to be
@@ -1996,7 +1996,7 @@ def s_history(c, t, lt, d):
     n = int(len(tag) * clamp((t - t0) / 0.35)) + 1
     ht(c, f"{kk + 1:02d} / {tag[:n]}", 260, 960, size=22, font="mono", color=OR if kk >= 9 else INKD,
        anchor=(0, 0.5))
-    return dict(flash=0.35 * (1 - ramp(t, t0, t0 + 0.1)))
+    return dict(flash=max(0.35 * (1 - ramp(t, t0, t0 + 0.1)), 0.65 * (1 - ease_out(ramp(lt, 0, 0.45)))))
 
 
 def s_heart_swoosh(c, t, lt, d):
@@ -2128,8 +2128,7 @@ def _build():
         (cut(B(24, 1)), s_profile),
         (cut(T(25)), A.s_open),
         (cut(kt.words(25)[5].t), s_film),
-        (cut(T(26)), s_run),
-        (cut(B(26, 1)), s_search),
+        (cut(T(26)), V13.s_love_qualia),
         (cut(T(27)), s_overflow),
         (cut(B(27, 1)), V13.s_hug_surge),
         (cut(T(28)), A.s_doppel),

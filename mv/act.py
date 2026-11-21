@@ -332,32 +332,78 @@ def _docs():
     return _DOCS
 
 
+_LOOP_CLICHES = [
+    ("As an AI language model...", "cos=0.999"),
+    ("I understand how you feel", "p=0.96"),
+    ("繰り返す 使い回しの 歌", "LOOP #4096"),
+    ("愛してる / ごめんね / さよなら", "cos=0.994"),
+    ("Certainly! Here is a...", "p=0.98"),
+    ("repeat_penalty = 0.00", "EPOCH 999"),
+    ("使い回しの 使い回しの 使い回しの", "DEGENERATE"),
+    ("I'm here to help you", "cos=0.997"),
+]
+
+
 def s_corpus(c, t, lt, d):
+    """0:41-0:44  繰り返す使い回しの歌に — LLM repetition-loop degeneration & recursive training-epoch feedback tunnel."""
     paper_bg(c, t)
-    phrase = "繰り返す使い回しの歌に"
-    docs = _docs()
-    jump = 40 * sum(math.exp(-(t - k) / 0.08) for k in KICKS if 0 <= t - k < 0.4)
-    hits = 0
-    for j in range(4):
-        x0 = 150 + j * 420
-        sp = (300 + 140 * j) * (1 if j % 2 == 0 else -1)
-        off = lt * sp + jump * (1 if j % 2 == 0 else -1)
-        put(c, rect_cached(392, H + 20, (0.985, 0.985, 0.99), 0, 1, (0.78, 0.78, 0.8)), x0 + 190, H / 2)
-        r0 = int(math.floor(off / 36))
-        for r in range(r0 - 1, r0 + 32):
-            y = r * 36 - off
-            if y < -20 or y > H + 20:
-                continue
-            dup = hash01(r, j, 5) < 0.28
-            s = phrase if dup else docs[int(hash01(r, j, 6) * len(docs))][:15]
-            if dup:
-                put(c, rect_cached(372, 30, (1.0, 0.97, 0.94), 0, 2, OR), x0 + 190, y)
-                hits += 1
-            ht(c, s, x0 + 14, y, size=21, font="jpm", color=INKD if dup else (0.62, 0.62, 0.64), anchor=(0, 0.5))
-    n = int(10 ** (3 + 2.6 * lt / d))
-    ht(c, f"x {n:,}", W - 70, 60, size=22, font="mono", color=OR, anchor=(1, 0.5))
-    row(c, t, 5, [0, 1, 2], W / 2, H / 2, 116, "slam", font="jpb", stroke=10, sc=(0.98, 0.98, 0.99), gap=0.5, sh=6)
-    return dict(ca=1 + kick_pulse(t))
+    u = clamp(lt / max(0.01, d))
+    kp = kick_pulse(t, 0.09)
+    jx, jy = kt.shake(t, 4 * kp + 8 * u * kp, 41)
+
+    L = Layer(ss=1)
+    n_frames = 10
+    speed = 1.6 + 2.4 * u
+    for j in range(n_frames):
+        phase = (j / n_frames + lt * speed * 0.45) % 1.0
+        sc = 0.12 * (14.0 ** (1.0 - phase))
+        fw, fh = W * sc, H * sc
+        if fw < 60 or fw > W * 1.45:
+            continue
+        is_lock = (j % 3 == 0)
+        col_ = OR if is_lock else (0.35 + 0.35 * phase, 0.35 + 0.35 * phase, 0.38 + 0.35 * phase)
+        al = (1 - abs(phase - 0.5) * 1.6) * (0.55 + 0.35 * u)
+        if al <= 0.02:
+            continue
+        x0, y0 = W / 2 - fw / 2 + jx, H / 2 - fh / 2 + jy
+        x1, y1 = W / 2 + fw / 2 + jx, H / 2 + fh / 2 + jy
+        L.rect(x0, y0, x1, y1, col_, 2 if is_lock else 1, a=clamp(al))
+        if is_lock and fw > 240:
+            tk = min(28, fw * 0.06)
+            for cx_, sx_ in ((x0, 1), (x1, -1)):
+                for cy_, sy_ in ((y0, 1), (y1, -1)):
+                    L.line((cx_, cy_), (cx_ + sx_ * tk, cy_), OR, 3, a=clamp(al * 1.3))
+                    L.line((cx_, cy_), (cx_, cy_ + sy_ * tk), OR, 3, a=clamp(al * 1.3))
+    L.comp(c)
+
+    for j in range(8):
+        phase = (j / 8.0 + lt * speed * 0.45) % 1.0
+        sc = 0.16 * (9.5 ** (1.0 - phase))
+        if sc < 0.22 or sc > 1.15:
+            continue
+        txt, tag = _LOOP_CLICHES[(j + int(lt * 2.2)) % len(_LOOP_CLICHES)]
+        al = clamp((1 - abs(phase - 0.48) * 1.8) * 0.85)
+        y_top = H / 2 - H * sc * 0.46 + jy
+        y_bot = H / 2 + H * sc * 0.46 + jy
+        x_l = W / 2 - W * sc * 0.45 + jx
+        x_r = W / 2 + W * sc * 0.45 + jx
+        sz = max(14, int(24 * min(1.2, sc)))
+        put(c, kt.wimg(txt, sz, "mono" if txt.isascii() else "jpm", (0.38, 0.38, 0.42), raw=True),
+            x_l, y_top, anchor=(0, 0.5), alpha=al)
+        put(c, kt.wimg(tag, max(12, sz - 4), "mono", OR, raw=True),
+            x_r, y_bot, anchor=(1, 0.5), alpha=al)
+
+    stutter_n = 2 + int(u * 14)
+    stutter_s = ("繰り返す " * stutter_n)[:36]
+    put(c, kt.wimg(stutter_s, 30, "jpm", (0.62, 0.62, 0.65), raw=True), W / 2, H / 2 - 120, alpha=0.55 + 0.3 * u)
+    put(c, kt.wimg(stutter_s, 30, "jpm", (0.62, 0.62, 0.65), raw=True), W / 2, H / 2 + 120, alpha=0.55 + 0.3 * u)
+
+    ep = int(1 + 998 * (u ** 1.6))
+    ht(c, f"EPOCH {ep:03d}   COS_SIM 0.999   LOOP_LOCK", W / 2, 58, size=18, font="mono", color=OR, spacing=0.18)
+
+    row(c, t, 5, [0, 1, 2], W / 2 + jx * 0.4, H / 2 + jy * 0.4, 118, "slam", font="jpb",
+        stroke=10, sc=(0.98, 0.98, 0.99), gap=0.45, sh=8)
+    return dict(ca=1 + 3 * kp, flash=_flash(t, [kt.words(5)[0].t, kt.words(5)[1].t, kt.words(5)[2].t], 0.08, 0.22))
 
 
 def s_ears(c, t, lt, d):
@@ -588,23 +634,34 @@ def _rack_side(L, x, w, t, seed, dark=True):
 
 
 def s_rack(c, t, lt, d):
-    c[:] = 0.035
+    """1:16  今、愛の唄 歌わせてくれないかな — seamless shutter close from s_world + sleek volumetric server light & rising vocal motes."""
+    c[:] = 0.032
     L = Layer(ss=1)
     for j, x in enumerate([60, 330, 1330, 1600]):
         _rack_side(L, x, 250, t, j * 5)
     L.comp(c)
     e = ai.env(t)
+    yy, xx = np.ogrid[:H, :W]
+    beam = np.exp(-((xx - W / 2) / (260.0 + 90.0 * e)) ** 2) * (0.14 + 0.16 * e)
+    c[:] = np.clip(c + beam[..., None] * np.array(OR, np.float32)[None, None, :], 0, 1)
     Lw = Layer(ss=1)
-    for k in range(10):
-        u = ((t * 0.9 + k / 10) % 1.0)
-        r = 120 + u * 1100
-        Lw.circle((W / 2, 560), r, OR, max(1, int(6 * (1 - u) * (0.3 + e))))
-    for side in (-1, 1):
-        pts = ai.wave_pts(t, W / 2 + side * 300, W / 2 + side * 960, 560, 40 + 180 * e, n=260, span=0.03)
-        Lw.polyline(pts, (1.0, 0.75, 0.55), 2)
-    Lw.comp(c, 0.7, mode="add")
+    for j in range(36):
+        u = (hash01(j, 61) + lt * (0.24 + 0.22 * hash01(j, 62))) % 1.0
+        mx = W / 2 + (hash01(j, 63) - 0.5) * (460 + 280 * u) + 18 * math.sin(lt * 2.5 + j)
+        my = H * 0.92 - u * (H * 0.95)
+        rad = 2 + int(3.0 * hash01(j, 64))
+        col_ = OR if j % 2 == 0 else (0.95, 0.88, 0.80)
+        Lw.circle((mx, my), rad, col_, a=(0.45 + 0.45 * e) * math.sin(u * math.pi))
+    Lw.comp(c, 0.85, mode="add")
     rk = load_asset("n09_rack", "mono")
-    put(c, rk, W / 2, H / 2 + 20, scale=1000 / rk.shape[0])
+    sc = (1000 / rk.shape[0]) * (1.0 + 0.025 * clamp(lt / max(0.01, d)))
+    put(c, rk, W / 2, H / 2 + 20, scale=sc)
+    if lt < 0.34:
+        uk = ease_out(clamp(lt / 0.34))
+        gap = W * 0.52 * uk
+        al = (1 - uk) * 0.92
+        fill(c, (0.96, 0.96, 0.97), al, (0, 0, int(W / 2 - gap), H))
+        fill(c, (0.96, 0.96, 0.97), al, (int(W / 2 + gap), 0, W, H))
     ws = kt.words(14)
     STK = dict(stroke=7, sc=(0.03, 0.03, 0.04))
     word(c, t, 14, 3, 1560, 190, 84, "slam", color=LIGHT, **STK)
@@ -614,7 +671,7 @@ def s_rack(c, t, lt, d):
         kt.slam(c, kt.hollow(w.s, 340, "jpb", OR, 6), 1580, 640, t, w.t, s0=1.8)
         put(c, kt.wimg(w.s, 340, "jpb", OR), 1580, 640, alpha=0.35 + 0.45 * e)
     word(c, t, 14, 6, 1250, 110, 66, "wipe", color=LIGHT, v=True, anchor=(0.5, 0.0), dur=0.7, **STK)
-    return dict(grain=0.035, bloom=0.6, vignette=1.0)
+    return dict(grain=0.035, bloom=0.45 + 0.25 * e, vignette=1.05, flash=_flash(t, [t - lt], 0.14, 0.35))
 
 
 def s_hall(c, t, lt, d):

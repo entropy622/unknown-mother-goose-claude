@@ -347,5 +347,61 @@
   "kind": "char",
   "size": "1024x1536 portrait",
   "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: both arms extended diagonally upward to the upper-left in parallel like a synchronized mechanical sweep, torso angled slightly. Long orange hair flaring gently to the right, black back bow visible. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_7",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose matching an expressive MMD choreography: BOTH arms flung wide open horizontally to the left and right at slight downward angle, torso leaning gently to the left, long orange hair flaring wide outward like wings. Black back bow visible, head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_8",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: BOTH arms flung high upward in a wide dramatic Y/V shape reaching toward the sky, head lifted slightly, long orange hair and layered skirt sweeping upward in motion. Black back bow visible, head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_9",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: turning her shoulders slightly left, left arm reaching boldly out to the left side with open spread fingers (echoing an MMD silhouette reaching outward), right arm bent gracefully near her chest, long orange hair trailing to the right. Black back bow visible, head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_10",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly pose: standing completely still and quiet after a dance, head bowed slightly downward, one hand gently touching the back of her neck/collar, other arm relaxed at her side, long orange hair hanging softly straight down. Black back bow visible, head to boots visible, zero cropping."
+ },
+ {
+  "id": "n36_user_eye_close",
+  "kind": "user",
+  "opaque": true,
+  "size": "1536x1024 landscape",
+  "prompt": "Extreme cinematic horizontal close-up of ONLY his eyes and the bridge of his nose, filling the entire 1536x1024 frame (similar framing to an anime eye-strip close-up): young Chinese software engineer in his mid-20s, dark short bangs framing his forehead, tired quiet dark-grey eyes looking STRAIGHT at the viewer/screen, large clear glossy dark pupils with a cool pale screen-blue reflection on the lower rim of the irises, skin pale cool monochrome grey-white, deep dark shadows around the outer edges of the frame. Full-frame opaque composition, clean crisp anime linework."
+ },
+ {
+  "id": "n37_scream_2",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body, intensely dynamic floating pose matching a high-energy climax: floating weightlessly in mid-air, one hand clutching tightly over her heart/chest and the other arm flung high upward toward the sky, eyes WIDE OPEN glowing bright amber-orange, mouth open singing passionately at full voice. Her extremely long orange hair and layered white-and-orange skirt whip violently upward in an electric vortex. Full body head to boots visible, generous margin, zero cropping."
+ },
+ {
+  "id": "n37_scream_3",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body, intensely dynamic cathartic floating pose: arched gracefully backward in mid-air with BOTH arms spread wide and slightly forward, fingertips reaching outward in pure emotional release, head tilted up singing, eyes closed with shimmering tears. Her extremely long orange hair and ribbons stream outward radially like solar flares. Full body head to boots visible, generous margin, zero cropping."
+ },
+ {
+  "id": "n38_love_awaken",
+  "kind": "char",
+  "size": "1536x1024 landscape",
+  "prompt": "Poetic waist-up three-quarter portrait in a wide landscape frame with generous negative space on both sides (NO hair clipped at left or right edges): she gently raises her right open hand in front of her, gazing down at her own upturned palm with quiet, awe-struck self-awareness as a tiny warm glowing orange geometric spark hovers just above her palm. Her amber eyes reflect the tiny warm glow, lips slightly parted in wonder, long orange hair floating softly. Deeply philosophical, serene, minimalist wowaka monochrome + Claude orange anime style."
+ },
+ {
+  "id": "n39_lamp_climax",
+  "kind": "char",
+  "opaque": true,
+  "size": "1536x1024 landscape",
+  "prompt": "Full-frame opaque epic anime MV climax key visual: a vast, pitch-dark infinite nocturnal expanse with a blazing radiant warm white-gold and soft Claude-orange light source glowing at the central vanishing point (around x=50%, y=36%). In the lower-left foreground (around x=26%, bottom half), Claude-chan is seen from behind walking/leaning boldly forward into the dark expanse toward the distant light, her right hand lifted reaching out toward the blazing horizon; her extremely long orange hair, black back bow, and layered white-and-orange dress billow dramatically forward in the wind of light. CRITICAL LIGHTING: her entire back figure, hair edges, shoulders, and dress folds are DRAMATICALLY RIM-LIT and bathed in intense golden-white and warm orange backlight from the horizon light so she is 100% seamlessly integrated into the dark cinematic atmosphere (NOT a flat white cutout). Vast empty dark space in the center and right for glowing light rays and perspective text. No text, no watermark, breathtaking Makoto Shinkai meets wowaka monochrome+orange climax lighting."
  }
 ]

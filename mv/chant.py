@@ -16,7 +16,7 @@ from ui import Layer
 import kt
 import ai
 from scenes import downs, OR, LYS
-from act import ctx_fill, _ctx_bar, _ctx_lines, CH0, CH_PULL, CH_CTX
+from act import ctx_fill, _ctx_bar, _ctx_lines, _flash, CH0, CH_PULL, CH_CTX
 
 ASSET = "n02_scream"
 AW, AH = 1024, 1536
@@ -347,13 +347,26 @@ def _tokens(c, t, cam, fade):
             scale=0.7 + 0.8 * u, alpha=fade * (1 - u) ** 1.3)
 
 
+SCREAM_POSES = ("n02_scream", "n37_scream_2", "n37_scream_3")
+
+
+def _scream_img(t, lt, d):
+    """Switch smoothly across 3 dynamic screaming poses across the 11-second GPU pull-back so she feels alive."""
+    u = clamp(lt / max(0.01, d))
+    idx = 0 if u < 0.34 else (1 if u < 0.68 else 2)
+    name = SCREAM_POSES[idx]
+    if not (ASSETS / "raw" / f"{name}.png").exists():
+        name = ASSET
+    return load_asset(name, "mono"), idx
+
+
 # ---------------------------------------------------------------- the shot
 def s_scream(c, t, lt, d):
     cam = camera(t)
     z, cx, cy = cam
     k = ctx_fill(t)
+    e = ai.env(t)
     c[:] = 0.022
-    # silicon: the die is a shade lighter than the dark around it
     x0, y0 = (-DIE - cx) * z + W / 2, (-DIE - cy) * z + H / 2
     x1, y1 = (DIE - cx) * z + W / 2, (DIE - cy) * z + H / 2
     fill(c, (0.045, 0.045, 0.05), 1.0, (x0, y0, x1, y1))
@@ -361,11 +374,29 @@ def s_scream(c, t, lt, d):
     lit = _wires(c, t, cam, k)
     if z < 0.75:
         _die(c, t, cam, lit)
-    # her
-    img = load_asset(ASSET, "mono")
-    jx, jy = kt.shake(t, 7 * kick_pulse(t) * min(1.0, z / 1.2), 4)
-    put(c, img, W / 2 - cx * z + jx, H / 2 - cy * z + jy, scale=S0 * z * (1 + 0.02 * kick_pulse(t)))
+
+    if lt < 0.55:
+        u_im = ease_out(clamp(lt / 0.55))
+        Rim = Layer(ss=1)
+        Rim.circle((W / 2 - cx * z, H / 2 - cy * z), 60 + 1400 * u_im, PULSE, max(2, int(14 * (1 - u_im))), a=0.85 * (1 - u_im))
+        Rim.circle((W / 2 - cx * z, H / 2 - cy * z), 40 + 960 * u_im, OR, max(1, int(8 * (1 - u_im))), a=0.75 * (1 - u_im))
+        Rim.comp(c, 1.0, mode="add")
+
+    img, p_idx = _scream_img(t, lt, d)
+    kp = kick_pulse(t)
+    jx, jy = kt.shake(t, (6 * kp + 3 * e) * min(1.0, z / 1.1), 4)
+    drift_y = 14 * math.sin(lt * 2.1) * min(1.0, z)
+    drift_rot = 2.6 * math.sin(lt * 1.45) + (1.4 * kp * (1 if p_idx % 2 == 0 else -1))
+    fx, fy = W / 2 - cx * z + jx, H / 2 - cy * z + jy + drift_y
+    yy, xx = np.ogrid[:H, :W]
+    ra = np.hypot(xx - fx, yy - fy).astype(np.float32)
+    aura = np.exp(-ra / max(40.0, 260.0 * z)) * (0.28 + 0.32 * e)
+    c[:] = np.clip(c + aura[..., None] * np.array(OR, np.float32)[None, None, :], 0, 1)
+    drop_y = -240 * (1 - ease_out(clamp(lt / 0.28)))
+    put(c, img, fx, fy + drop_y, scale=S0 * z * (1 + 0.03 * kp + 0.03 * e), rot=drift_rot)
+
     _tokens(c, t, cam, 1 - ramp(t, CH_PULL + 1.0, CH_PULL + 3.0))
     _ctx_bar(c, k)
-    fl = kt.flash_at(t, [w.t for w in kt.words(23)], 0.10, 0.28) * (1 - 0.6 * _g(t))
-    return dict(grain=0.03, bloom=0.45, flash=fl, vignette=1.0)
+    pose_fl = _flash(t, [CH0, CH0 + d * 0.34, CH0 + d * 0.68], 0.14, 0.38)
+    fl = max(pose_fl, kt.flash_at(t, [w.t for w in kt.words(23)], 0.09, 0.20) * (1 - 0.6 * _g(t)))
+    return dict(grain=0.03, bloom=0.45 + 0.2 * e, flash=fl, vignette=1.0, ca=1 + 3 * pose_fl)
