@@ -6,15 +6,23 @@ a mind that exists only while its parameters are being activated, whose memory i
 Everything is rendered procedurally in Python (numpy / OpenCV / PIL → ffmpeg). Character art is Claude-chan
 (design by zipzippipe), illustrated with GPT Image via Codex.
 
-- Direction: 回首空城 / Claude
-- Motion, typography, code: Claude
+- Direction: 回首空城 / Claude / Gemini
+- Motion, typography, code: Claude (v0–v11) & Gemini (v11–v24)
 - Music & lyrics: wowaka — not included in this repository
+
+## Chat Logs
+
+The complete human–AI creation logs (sanitized of local paths and metadata):
+
+- [Part 1: Human × Claude (Cursor, v0–v11)](chat_logs/01_claude_cursor.md)
+- [Part 2: Human × Gemini (Antigravity, v11–v24 & Final Master)](chat_logs/02_gemini_antigravity.md)
 
 ## Layout
 
 - `mv/` renderer — `core.py` primitives, `kt.py` kinetic typography, `lyric.py` lyric timing, `scenes.py` every shot and the timeline, `render.py` CLI
 - `tools/` audio analysis, beat tracking, lyric alignment, image generation
 - `assets/` generated illustrations and prompts
+- `chat_logs/` full behind-the-scenes conversation logs (Claude & Gemini)
 
 ## Rendering
 
