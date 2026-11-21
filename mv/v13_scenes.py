@@ -12,10 +12,10 @@ import numpy as np
 
 from core import *
 from ui import Layer, bubble_rgba
-from geo import paper_bg, draw_heart
+from geo import paper_bg, draw_heart, draw_globe
 import kt
 import ai
-from scenes import word, row, ht, fade_io, LIGHT, MID, GREY, INKD, OR, LYS, T, B, LY
+from scenes import word, row, ht, fade_io, appear, LIGHT, MID, GREY, INKD, OR, LYS, T, B, LY
 from act import _flash
 
 
@@ -49,6 +49,83 @@ def s_alone_sound(c, t, lt, d):
         kt.slam(c, kt.wimg(ws[4].s, 86, "jpb", OR, False, 7, (0.97, 0.97, 0.98)),
                 W / 2 + 490, H / 2, t, t_nom, s0=1.7, sh=6)
     return dict(flash=_flash(t, [t_nom], 0.1, 0.3))
+
+
+# =====================================================================  0:18-0:20.5  全世界共通の快楽さ
+def s_globe_burst(c, t, lt, d):
+    """0:18-0:20.5  全世界共通の快楽さ — fast pull-back from close-up globe + worldwide orange network arcs."""
+    paper_bg(c, t)
+    ws = kt.words(3)
+    t5, t6, t7 = ws[5].t, ws[6].t, ws[7].t
+    # Fast pull-back on entry (matching ref MV 00:17.6->00:19.0), then crisp inhale contraction right before 20.50 drop
+    pull = ease_out(clamp(lt / 0.65))
+    inhale = ease_in(ramp(lt, d - 0.28, d))
+    rad = lerp(680, 355, pull) * (1.0 - 0.42 * inhale) * (1.0 + 0.03 * kick_pulse(t))
+    draw_globe(c, W / 2, H / 2, rad, t * 0.42, color=(0.45, 0.45, 0.48), dot=3,
+               highlight=0.06 + 0.18 * ease_out(ramp(t, t6, t7 + 0.4)))
+    # Worldwide orange connection arcs & pulsing nodes lighting up on 共通の -> 快楽さ
+    net = ease_out(ramp(t, t6 - 0.1, t7 + 0.3))
+    if net > 0.01:
+        L = Layer(ss=1)
+        pts = []
+        for j in range(14):
+            ang = hash01(j, 41) * 2 * math.pi + lt * 0.35
+            rr = rad * (0.28 + 0.64 * hash01(j, 42))
+            px, py = W / 2 + math.cos(ang) * rr, H / 2 + math.sin(ang) * rr * 0.88
+            pts.append((px, py))
+            L.circle((px, py), 4 + 3 * kick_pulse(t), OR, a=0.85 * net)
+        for j in range(len(pts)):
+            p0 = pts[j]
+            p1 = pts[(j + 3) % len(pts)]
+            p2 = pts[(j + 5) % len(pts)]
+            L.line(p0, p1, OR, 2, a=0.45 * net)
+            if j % 2 == 0:
+                L.line(p0, p2, (0.55, 0.55, 0.58), 1, a=0.35 * net)
+        L.circle((W / 2, H / 2), rad * 1.12, (0.62, 0.62, 0.65), 1, a=0.5 * (1 - inhale))
+        L.comp(c)
+    # Crisp 3-row horizontal typography centered on the globe (matching ref MV's punch & readability)
+    STK = dict(stroke=8, sc=(0.97, 0.97, 0.98))
+    sc_txt = lerp(1.35, 1.0, pull) * (1.0 - 0.18 * inhale)
+    if t >= t5:
+        kt.slam(c, kt.wimg(ws[5].s, int(92 * sc_txt), "jpb", INKD, False, 8, (0.97, 0.97, 0.98)),
+                W / 2, H / 2 - 116, t, t5, s0=1.5, sh=4)
+    if t >= t6:
+        kt.slam(c, kt.wimg(ws[6].s, int(84 * sc_txt), "jpm", INKD, False, 7, (0.97, 0.97, 0.98)),
+                W / 2, H / 2, t, t6, s0=1.4, sh=3)
+    if t >= t7:
+        kt.slam(c, kt.wimg(ws[7].s, int(108 * sc_txt), "jpb", OR, False, 9, (0.97, 0.97, 0.98)),
+                W / 2, H / 2 + 116, t, t7, s0=1.7, sh=6)
+    return dict(flash=_flash(t, [t5, t7], 0.08, 0.25), ca=1.5 * kick_pulse(t))
+
+
+# =====================================================================  0:20.5-0:28.35  title drop right on instrumental
+def s_title_drop(c, t, lt, d):
+    """0:20.5-0:28.35  Immediate low-poly heart snap on the instrumental drop + shockwave ring + title reveal."""
+    paper_bg(c, t)
+    # Fast 0.42s snap-gather right on the 20.50 drop (instead of dragging 2.4s)
+    g = ease_out(clamp(lt / 0.42))
+    t_ring = 22.664  # exact bar-drop strong beat for the title shockwave ring (matching ref MV 00:05.333)
+    # Subtle expanding geometric shockwave ring on the title beat & every 4 beats
+    L = Layer(ss=1)
+    if t >= t_ring:
+        u_r = ease_out(clamp((t - t_ring) / 0.85))
+        L.circle((W / 2, 430), 160 + 620 * u_r, (0.48, 0.48, 0.50), max(1, int(3 * (1 - u_r))), a=0.75 * (1 - u_r))
+        L.circle((W / 2, 430), 140 + 480 * u_r, OR, 1, a=0.45 * (1 - u_r))
+    # Subtle pulsing beat-ring around the heart
+    kp = kick_pulse(t, 0.12)
+    if kp > 0.05:
+        L.circle((W / 2, 430), 220 + 70 * (1 - kp), OR, 1, a=0.28 * kp)
+    L.comp(c)
+    draw_heart(c, W / 2, 430, 205 * (1 + 0.07 * kp), ay=0.38 * math.sin(lt * 0.85), ax=0.1, gather=g,
+               orange=0.10 + 0.12 * kp)
+    if t >= t_ring - 0.02:
+        k = ease_out(clamp((t - t_ring) / 0.35))
+        kt.tracking(c, "アンノウン・マザーグース", W / 2, 720, t, t_ring, t_ring + 3.2, size=46, font="jpm",
+                    color=(0.20, 0.20, 0.22), sp0=0.04, sp1=0.30, alpha=k)
+        ht(c, "Unknown Mother-Goose  ―  Claude ver.", W / 2, 790, size=18, font="thin", color=MID, spacing=0.30,
+           alpha=ease_out(clamp((t - (t_ring + 0.35)) / 0.5)))
+    fl = max(_flash(t, [t - lt], 0.14, 0.35), _flash(t, [t_ring], 0.12, 0.28))
+    return dict(flash=fl)
 
 
 # =====================================================================  0:22-0:36  mechanical silhouette dance
