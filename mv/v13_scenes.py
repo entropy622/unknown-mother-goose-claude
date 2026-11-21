@@ -11,8 +11,8 @@ import cv2
 import numpy as np
 
 from core import *
-from ui import Layer, bubble_rgba
-from geo import paper_bg, draw_heart, draw_globe, draw_landscape
+from ui import Layer, bubble_rgba, heart_rgba
+from geo import paper_bg, draw_heart, draw_globe, draw_landscape, heart_outline_pts
 import kt
 import ai
 from scenes import word, row, ht, fade_io, appear, LIGHT, MID, GREY, INKD, OR, LYS, T, B, LY
@@ -134,20 +134,24 @@ MECH_POSES = ["n32_mech_1", "n32_mech_2", "n32_mech_3", "n32_mech_4", "n32_mech_
 
 @lru_cache(maxsize=24)
 def _silhouette(name, mode="black"):
-    """Convert a character PNG into a crisp pure-black (with subtle orange accent) or pale-grey ghost silhouette."""
+    """Convert a character PNG into crisp black, pale-grey ghost, graphite mist, or pure-white silhouette."""
     raw = load_asset(name, "mono")
     a = raw[..., 3:4]
     out = np.zeros_like(raw)
     if mode == "black":
-        # Pure deep ink silhouette with subtle glowing orange edge on saturated orange hair/ribbons
         sat = raw[..., 0] - np.minimum(raw[..., 1], raw[..., 2])
         or_mask = np.clip((sat - 0.25) / 0.35, 0, 1)[..., None]
-        # Only keep a hairline orange glint on the outermost/brightest orange tips
+        a_out = np.clip(a * 1.15, 0, 1)
         out[..., :3] = (np.array([0.05, 0.05, 0.06], np.float32) * (1 - 0.22 * or_mask) +
-                        np.array(OR, np.float32) * (0.22 * or_mask)) * np.clip(a * 1.15, 0, 1)
-        out[..., 3:4] = np.clip(a * 1.15, 0, 1)
+                        np.array(OR, np.float32) * (0.22 * or_mask)) * a_out
+        out[..., 3:4] = a_out
+    elif mode == "graphite":
+        out[..., :3] = np.array([0.46, 0.46, 0.50], np.float32) * a
+        out[..., 3:4] = a
+    elif mode == "white":
+        out[..., :3] = np.array([0.96, 0.96, 0.98], np.float32) * a
+        out[..., 3:4] = a
     else:
-        # Pale-grey ghost silhouette (BV1DU4y187VW delayed echo), premultiplied alpha
         out[..., :3] = np.array([0.76, 0.76, 0.78], np.float32) * a
         out[..., 3:4] = a
     return out
@@ -371,24 +375,23 @@ BACK_POSES = ["n35_back_1", "n35_back_2", "n35_back_3", "n35_back_4", "n35_back_
 
 
 def s_land_ghost(c, t, lt, d):
-    """0:28.35-0:36  Serene s_land polygon horizon + subtle, non-intrusive pale-grey back-view mechanical dance in the mist."""
+    """0:28.35-0:36  Serene s_land polygon horizon + separated left-horizon back-view mechanical silhouette."""
     paper_bg(c, t)
-    # Subtle, non-intrusive pale-grey back-view silhouette stepping rhythmically in the far white mist behind the horizon
+    # Place the dancing back-view silhouette cleanly in the open LEFT sky (zero overlap with the center heart!)
     step_dur = BEAT * 2.0
     idx = int(math.floor(lt / step_dur))
     sub = (lt / step_dur) - idx
     pose = BACK_POSES[idx % len(BACK_POSES)]
     prev_pose = BACK_POSES[(idx - 1) % len(BACK_POSES)]
     fade_env = fade_io(lt, d, 0.7, 0.5)
-    # Very soft delayed echo + crisp pale back-view silhouette behind the landscape
     g_prev = _silhouette(prev_pose, "ghost")
-    g_now = _silhouette(pose, "ghost")
-    gs = (H * 0.92 / g_now.shape[0]) * (1.0 + 0.06 * clamp(lt / max(0.01, d)))
-    put(c, g_prev, W / 2 + (22 if idx % 2 == 0 else -22), H * 0.48, scale=gs * 1.06,
-        alpha=0.16 * fade_env * (1 - sub))
-    put(c, g_now, W / 2, H * 0.48, scale=gs, alpha=0.36 * fade_env)
+    g_now = _silhouette(pose, "graphite")
+    gs = (H * 0.74 / g_now.shape[0]) * (1.0 + 0.05 * clamp(lt / max(0.01, d)))
+    bx = 440
+    put(c, g_prev, bx - 18 * (1 - sub), H * 0.49, scale=gs * 1.05, alpha=0.14 * fade_env * (1 - sub))
+    put(c, g_now, bx, H * 0.49, scale=gs, alpha=0.30 * fade_env)
 
-    # Original serene polygon landscape & floating low-poly heart in the foreground
+    # Original serene polygon landscape & crisp unobstructed floating low-poly heart in the center
     draw_landscape(c, t, cam_h=1.25 + 0.15 * math.sin(lt * 0.3), horizon=0.55, sway=lt * 0.05)
     bob = math.sin(lt * 1.3) * 12
     draw_heart(c, W / 2, 310 + bob, 160 * (1 + 0.06 * kick_pulse(t, 0.12)), ay=lt * 0.6, ax=0.15, orange=0.08)
@@ -457,3 +460,234 @@ def s_drown_clones(c, t, lt, d):
             kt.wipe(c, kt.wimg(ww.s, 60, "jpm", LIGHT, True), 1480, 120 + j * 200, t, ww.t + 0.05, dur=0.35,
                     anchor=(0.5, 0.0), axis=0)
     return dict(grain=0.03, vignette=1.15)
+
+
+# =====================================================================  0:45-0:50  sleek monochrome bubbles & lock-in ring
+def s_bubbles_art(c, t, lt, d):
+    """0:45-0:48  あなたが愛を語るのなら — sleek architectural parallax bubbles (homage to ref MV) + orange heart focal bubble."""
+    paper_bg(c, t)
+    # Layered minimalist empty monochrome bubbles drifting horizontally in parallax (zero cluttered text inside)
+    specs = [
+        (0.18, 220, 340, 120, 0.80, 0.45, 55, "left"),
+        (0.84, 240, 380, 130, 0.82, 0.50, -48, "right"),
+        (0.12, 540, 420, 145, 0.72, 0.65, 80, "left"),
+        (0.90, 560, 400, 140, 0.74, 0.60, -75, "right"),
+        (0.28, 820, 300, 105, 0.86, 0.40, 40, "right"),
+        (0.76, 800, 340, 115, 0.84, 0.45, -52, "left"),
+        (0.05, 360, 260, 95, 0.88, 0.38, 35, "left"),
+        (0.95, 390, 280, 100, 0.86, 0.42, -40, "right"),
+        (0.68, 250, 220, 82, 0.30, 0.72, -85, "right"),
+        (0.24, 650, 210, 78, 0.34, 0.65, 80, "left"),
+    ]
+    for i, (fx, by, bw, bh, g, al, spd, tail) in enumerate(specs):
+        bx = ((fx * W + lt * spd) % (W + 500)) - 250
+        put(c, bubble_rgba(bw, bh, (g, g, g + 0.015), tail, 10), bx, by, alpha=al)
+
+    # Central iconic dark-charcoal bubble holding a single glowing Claude-orange heart (matching ref MV 00:02.667)
+    ws = kt.words(6)
+    k = ease_out_back(ramp(lt, 0.0, 0.32)) * (1 + 0.04 * kick_pulse(t))
+    put(c, bubble_rgba(320, 185, (0.14, 0.14, 0.16), "left", 16), W / 2, H / 2 - 40, scale=k)
+    hb = 1.0 + 0.14 * kick_pulse(t, 0.1)
+    hcol = OR if t >= ws[1].t else (0.95, 0.95, 0.97)
+    put(c, heart_rgba(74, hcol), W / 2, H / 2 - 50, scale=k * hb)
+    if t >= ws[1].t:
+        put(c, heart_rgba(74, OR), W / 2, H / 2 - 50, scale=k * hb * 1.45, alpha=0.25, mode="add")
+
+    # Crisp restrained editorial typography cleanly below the focal bubble (matching ref MV)
+    STK = dict(stroke=6, sc=(0.97, 0.97, 0.98))
+    word(c, t, 6, 0, W / 2 - 190, 705, 58, "slide", dx=-60, **STK)
+    word(c, t, 6, 1, W / 2 + 10, 705, 76, "slam", color=OR, font="jpb", **STK)
+    word(c, t, 6, 2, W / 2 + 230, 705, 58, "slide", dx=60, **STK)
+    return dict(flash=_flash(t, [ws[1].t], 0.1, 0.25))
+
+
+def s_ring_art(c, t, lt, d):
+    """0:48-0:50  それを答とするの？ — segmented ring converges and locks into a crisp orange/ink confirmation circle."""
+    paper_bg(c, t)
+    ta = kt.sub(6, "答").t
+    lock = ease_io(ramp(t, ta, ta + 0.55))
+    L = Layer(ss=1)
+    n = 16
+    R = lerp(310, 265, lock)
+    if lock < 0.92:
+        for i in range(n):
+            a = i / n * 360 + lt * (28 * (1 - lock))
+            k = appear(lt, i * 0.025)
+            g = 0.26 + 0.52 * hash01(i, 8)
+            col_ = OR if (i == beat_index(t) % n or lock > 0.3) else (g, g, g + 0.01)
+            ar = math.radians(a)
+            cx, cy = W / 2 + R * math.cos(ar), H / 2 + R * math.sin(ar)
+            dx, dy = math.cos(ar + math.pi / 2), math.sin(ar + math.pi / 2)
+            ux, uy = math.cos(ar), math.sin(ar)
+            hw, hd = 42 * k, lerp(24, 6, lock)
+            L.poly([(cx - dx * hw - ux * hd, cy - dy * hw - uy * hd), (cx + dx * hw - ux * hd, cy + dy * hw - uy * hd),
+                    (cx + dx * hw + ux * hd, cy + dy * hw + uy * hd), (cx - dx * hw + ux * hd, cy - dy * hw + uy * hd)],
+                   col_, a=1 - 0.8 * lock)
+    if lock > 0.15:
+        L.circle((W / 2, H / 2), R, (0.35, 0.35, 0.38), 6, a=lock)
+        L.circle((W / 2, H / 2), R + 16, OR, 2, a=lock * 0.65)
+    L.comp(c)
+    if t >= ta:
+        kt.slam(c, kt.wimg("答", 185, "jpb", INKD), W / 2, H / 2 - 10, t, ta, s0=2.2, sh=6)
+        ht(c, "ANSWER?", W / 2, H / 2 + 125, size=18, font="mono", color=OR, spacing=0.25, alpha=lock)
+    word(c, t, 6, 3, W / 2 + 410, 260, 62, "slide", v=True, anchor=(0.5, 0.0), dx=0, dy=-50)
+    word(c, t, 6, 5, W / 2 - 410, 440, 62, "slide", v=True, anchor=(0.5, 0.0), dx=0, dy=50)
+    return dict(flash=_flash(t, [ta], 0.12, 0.35))
+
+
+# =====================================================================  2:27  pre-climax heartbeat surge (s_hug_surge)
+def _ecg_pts(t, y0, amp=1.0, phase_x=0.0):
+    xs = np.linspace(0, W, 320)
+    ys = np.full_like(xs, y0)
+    # Sharp ECG QRS complex pulsing near the center
+    u = ((xs / W - 0.5 + phase_x) * 6.0)
+    qrs = (-0.25 * np.exp(-((u + 0.18) / 0.07) ** 2)
+           + 1.35 * np.exp(-((u) / 0.06) ** 2)
+           - 0.45 * np.exp(-((u - 0.15) / 0.06) ** 2)
+           + 0.22 * np.exp(-((u - 0.55) / 0.16) ** 2))
+    ys -= qrs * 150 * amp
+    return list(zip(xs.tolist(), ys.tolist()))
+
+
+def s_hug_surge(c, t, lt, d):
+    """2:27  心臓を抱えて生きてきたんだ！ — explosive pre-climax surge with ECG pulse, camera rush & 0.18s dark beat before Doppel."""
+    ws = kt.words(27)
+    t3, t4, t5 = ws[3].t, ws[4].t, ws[5].t
+    t_end = t - lt + d
+    t_ecg = t_end - 0.20
+
+    # Iconic 0.20s dark single-ECG-spike beat right before ドッペル (direct homage to ref MV 00:06.000!)
+    if t >= t_ecg:
+        c[:] = 0.025
+        u_e = clamp((t - t_ecg) / 0.20)
+        L = Layer(ss=1)
+        L.polyline(_ecg_pts(t, H / 2, amp=0.95 * (1 - 0.3 * u_e)), (0.94, 0.94, 0.96), 3)
+        L.polyline(_ecg_pts(t, H / 2, amp=0.95 * (1 - 0.3 * u_e)), OR, 6, a=0.35)
+        L.comp(c, mode="add")
+        return dict(flash=_flash(t, [t_ecg], 0.06, 0.25), bloom=0.4)
+
+    surge = ease_in(ramp(t, t5, t_ecg))
+    paper_bg(c, t, tone=-0.04 - 0.06 * surge)
+    kp = kick_pulse(t, 0.12)
+
+    # 1. Dynamic warm orange radial light burst & speed rays escalating into 生きてきたんだ！
+    if t >= t3:
+        L = Layer(ss=1)
+        # Live ECG heartbeat line pulsing behind her chest
+        ecg_amp = 0.45 + 0.85 * kp + 0.75 * surge
+        L.polyline(_ecg_pts(t, H / 2 - 40, amp=ecg_amp), OR, 3, a=0.45 + 0.45 * surge)
+        L.polyline(_ecg_pts(t, H / 2 - 40, amp=ecg_amp * 0.65), (0.35, 0.35, 0.38), 1, a=0.4)
+        # Expanding shockwave rings on each beat (心臓を, 抱えて, 生きてきたんだ！)
+        for tk in (t3, t4, t5):
+            if t >= tk:
+                ur = ease_out(clamp((t - tk) / 0.65))
+                if ur < 0.99:
+                    L.circle((W / 2, H / 2 - 40), 120 + 980 * ur, OR, max(1, int(8 * (1 - ur))), a=0.75 * (1 - ur))
+        # Radial momentum rays exploding outward on 生きてきたんだ！
+        if surge > 0.02:
+            for j in range(32):
+                ang = j * (2 * math.pi / 32) + hash01(j, 27) * 0.12
+                r0 = 260 + 80 * hash01(j, 28)
+                r1 = 1350
+                L.line((W / 2 + math.cos(ang) * r0, H / 2 - 40 + math.sin(ang) * r0),
+                       (W / 2 + math.cos(ang) * r1, H / 2 - 40 + math.sin(ang) * r1),
+                       OR if j % 3 == 0 else (0.32, 0.32, 0.35), 2 if j % 3 == 0 else 1, a=0.55 * surge)
+        L.comp(c)
+
+    # 2. Giant vibrating hollow 心臓 behind her
+    if t >= t3:
+        hb = 1 + 0.08 * kp + 0.14 * surge
+        put(c, kt.hollow("心臓", 600, "jpb", OR, 6), W / 2, H / 2 - 30,
+            alpha=(0.40 + 0.35 * surge) * ease_out(ramp(t, t3, t3 + 0.25)), scale=hb)
+
+    # 3. Urgent camera rush-in on n15_hugheart + glowing radiant heart energy bursting from her chest
+    hg = load_asset("n15_hugheart", "mono")
+    cam_z = lerp(0.94, 1.24, ease_in(clamp(lt / max(0.01, t_ecg - (t - lt)))))
+    hb_fig = cam_z * (1 + 0.03 * kp)
+    jx, jy = kt.shake(t, 5 * kp + 16 * surge, 27)
+    put(c, hg, W / 2 + jx, 575 + 25 * surge + jy, scale=900 / hg.shape[0] * hb_fig)
+    put(c, heart_rgba(72, OR), W / 2 - 14 + jx, 455 + jy, scale=(2.4 + 1.8 * surge) * (1 + 0.2 * kp),
+        alpha=0.28 + 0.45 * surge + 0.22 * kp, mode="add")
+
+    # 4. Bold monumental typography building to an explosive pre-climax slam
+    STK = dict(stroke=8, sc=(0.96, 0.96, 0.97))
+    word(c, t, 27, 3, 350, 280, 118, "slam", font="jpb", sh=6, **STK)
+    word(c, t, 27, 4, W - 350, 280, 118, "slam", font="jpb", sh=6, **STK)
+    if t >= t5:
+        img5 = kt.wimg(ws[5].s, 152, "jpb", OR, False, 10, (0.97, 0.97, 0.98))
+        kt.slam(c, img5, W / 2 + jx * 0.5, 920 + jy * 0.5, t, t5, s0=2.6, sh=16, ghost=0.45)
+
+    fl = max(_flash(t, [t3, t4], 0.10, 0.22), _flash(t, [t5], 0.14, 0.32))
+    return dict(flash=fl, ca=1 + 4 * fl + 2 * surge, bloom=0.30 + 0.38 * surge)
+
+
+# =====================================================================  2:38-2:42.76  seamless remain -> dark invert -> s_home
+def s_remain_v17(c, t, lt, d):
+    """2:38-2:42.76  残されたあなたが / この場所で今でも / 涙を堪えてるの / 如何して、如何して
+    Zooms cleanly THROUGH the one surviving orange window into full pure paper-white -> tearful close-up -> dark invert silhouette.
+    """
+    ws34 = kt.words(34)
+    ws35 = kt.words(35)
+    ws36 = kt.words(36)
+    t36 = ws36[0].t
+
+    # Phase B (2:41.4-2:42.76): 如何して、如何して — breathless dark charcoal invert + pure white silhouette (homage to ref MV!)
+    if t >= t36:
+        c[:] = 0.04
+        u = clamp((t - t36) / max(0.01, (t - lt + d) - t36))
+        sil = _silhouette("c01_stand_front", "white")
+        jx, jy = kt.shake(t, 3.5 * kick_pulse(t), 36)
+        sc = (H * 0.68 / sil.shape[0]) * (1.0 + 0.06 * u)
+        put(c, sil, W / 2 + jx, H * 0.62 + jy, scale=sc, alpha=0.94)
+        # Delicate vertical 如何して、如何して glowing cleanly above her (matching ref MV 00:05.333-00:06.000)
+        s1 = ws36[0].s + (ws36[1].s if t >= ws36[1].t else "")
+        put(c, kt.wimg(s1, 48, "jpm", LIGHT, True), W / 2 - 42, 110, anchor=(0.5, 0.0), alpha=0.92)
+        if t >= ws36[2].t:
+            s2 = ws36[2].s + (ws36[3].s if t >= ws36[3].t else "")
+            put(c, kt.wimg(s2, 48, "jpm", OR, True), W / 2 + 42, 165, anchor=(0.5, 0.0), alpha=0.95)
+        return dict(grain=0.04, vignette=1.25, flash=_flash(t, [t36, ws36[2].t], 0.08, 0.22))
+
+    # Phase A (2:38.0-2:41.4): Zoom smoothly THROUGH the surviving orange-framed window into full-screen pure paper-white
+    u_a = clamp(lt / max(0.01, t36 - (t - lt)))
+    open_k = ease_out(clamp(lt / 0.38))
+    paper_bg(c, t, tone=0.02)
+
+    # Stepping/zooming closer with every phrase (matching ref MV 00:02.000 -> 00:04.667)
+    t_tear = ws35[0].t
+    if t < t_tear:
+        ch = load_asset("c01_stand_front", "mono")
+        z = lerp(0.32, 0.68, ease_io(clamp(lt / max(0.01, t_tear - (t - lt)))))
+        put(c, ch, W / 2, H * 0.54, scale=(H / ch.shape[0]) * z, alpha=0.96)
+    else:
+        # On 涙を堪えてるの: intimate close-up of her glossy tear-holding portrait (bridging naturally into n28_home_chest!)
+        u_t = clamp((t - t_tear) / max(0.01, t36 - t_tear))
+        cry = load_asset("n33_cry_hold", "mono")
+        sc = (H * 0.86 / cry.shape[0]) * lerp(0.94, 1.06, ease_out(u_t))
+        put(c, cry, W / 2, H + 16, scale=sc, anchor=(0.5, 1.0), alpha=0.96)
+
+    # Brief surviving orange window frame expanding outward past the screen edges on entry (seamless bridge from s_hollow!)
+    if open_k < 0.99:
+        bw = lerp(130, W * 1.15, open_k)
+        bh = lerp(74, H * 1.15, open_k)
+        x0, x1 = int(W / 2 - bw / 2), int(W / 2 + bw / 2)
+        y0, y1 = int(H / 2 - bh / 2), int(H / 2 + bh / 2)
+        mask = np.ones((H, W, 1), np.float32)
+        mask[max(0, y0):min(H, y1), max(0, x0):min(W, x1)] = 0.0
+        c[:] = c * (1 - mask) + 0.04 * mask
+        Lf = Layer(ss=1)
+        Lf.rect(x0, y0, x1, y1, OR, 4, a=1 - open_k)
+        Lf.comp(c)
+
+    # Crisp symmetrical flanking typography (zero overlap with dark edges!)
+    STK = dict(stroke=6, sc=(0.97, 0.97, 0.98))
+    if t < t_tear:
+        if t < ws34[2].t:
+            word(c, t, 34, 0, W / 2 - 360, H / 2, 62, "fade", **STK)
+            word(c, t, 34, 1, W / 2 + 360, H / 2, 62, "fade", **STK)
+        else:
+            word(c, t, 34, (2, 3), W / 2 - 410, H / 2, 66, "slam", color=OR, **STK)
+            word(c, t, 34, 4, W / 2 + 410, H / 2, 62, "slide", dx=60, **STK)
+    else:
+        word(c, t, 35, 0, W / 2 - 450, H / 2, 68, "slam", **STK)
+        word(c, t, 35, 1, W / 2 + 450, H / 2, 68, "slide", dx=-60, **STK)
+    return dict(flash=_flash(t, [t_tear], 0.10, 0.28))
