@@ -270,3 +270,226 @@ def s_carried(c, t, lt, d):
     word(c, t, 38, 4, W / 2, 960, 120, "slam", color=LIGHT, sh=14, s0=1.8)
     fl = max(_flash(t, [tC], 0.22, 0.55), _flash(t, [ws[1].t, ws[2].t, ws[3].t], 0.08, 0.2))
     return dict(flash=fl, bloom=0.25 + 0.5 * relit, ca=2 * _flash(t, [tC], 0.3, 1.0), grain=0.03)
+
+
+# =====================================================================  2:53  何千回と巡らせ続けた 喜怒と哀楽
+FRAG = {
+    "喜": ["合格した！", "生まれたよ", "ありがとう", "やっと会えた", "大好き", "おめでとう", "できた！", "晴れた"],
+    "怒": ["ふざけるな", "なんで", "許さない", "返して", "うるさい", "もういい", "嘘つき", "黙れ"],
+    "哀": ["さよなら", "ごめんね", "会いたい", "最後の", "ひとりで", "もう戻れない", "泣いた", "雨"],
+    "楽": ["また遊ぼう", "夏休み", "笑った", "楽しかった", "歌おう", "乾杯", "ねえ見て", "海へ"],
+}
+EMO_C = {"喜": (W / 2, 250), "怒": (W / 2 + 560, H / 2 + 10), "哀": (W / 2, H - 230), "楽": (W / 2 - 560, H / 2 + 10)}
+ORX, ORY = 560, 300
+
+
+@lru_cache(maxsize=1)
+def _galaxy():
+    rng = np.random.default_rng(171)
+    pts = []
+    for e, (cx, cy) in EMO_C.items():
+        for j in range(420):
+            r = abs(rng.normal(0, 1)) * 120
+            a = rng.uniform(0, 2 * math.pi)
+            pts.append((cx + r * math.cos(a) * 1.3, cy + r * math.sin(a), e, j % len(FRAG[e]), rng.random()))
+    for j in range(500):
+        e = "喜怒哀楽"[j % 4]
+        pts.append((rng.uniform(80, W - 80), rng.uniform(90, H - 90), e, j % len(FRAG[e]), rng.random()))
+    return pts
+
+
+def _cycles(t, t0, d):
+    u = clamp((t - t0) / d)
+    return 0.45 * u * d + 2.2 * u ** 2.5
+
+
+def _orbit(th):
+    return W / 2 + ORX * math.sin(th), H / 2 + 10 - ORY * math.cos(th)
+
+
+def s_feel(c, t, lt, d):
+    c[:] = 0.03
+    t0 = t - lt
+    cyc = _cycles(t, t0, d)
+    th = 2 * math.pi * cyc
+    px, py = _orbit(th)
+    G = _galaxy()
+    L = Layer(ss=1)
+    near = []
+    for (x, y, e, fi, r) in G:
+        dd = math.hypot(x - px, y - py)
+        lit = clamp(1 - dd / 230)
+        g = 0.20 + 0.12 * r + 0.55 * lit
+        col_ = tuple(lerp(g, o, 0.6 * lit) for o in OR) if e in "喜楽" else (g, g, g + 0.02)
+        L.circle((x, y), 1.4 + 1.2 * r + 1.6 * lit, col_)
+        if lit > 0.35 and r > 0.55:
+            near.append((lit, x, y, e, fi))
+    # every pass she has made leaves a trace: thousands of orbits worn into the dark
+    n_trace = min(60, int(cyc * 6) + 1)
+    for j in range(n_trace):
+        k = 0.92 + 0.16 * hash01(j, 3)
+        pts = [(W / 2 + ORX * k * math.sin(a), H / 2 + 10 - ORY * k * math.cos(a)) for a in np.linspace(0, 2 * math.pi, 90)]
+        L.polyline(pts, (0.30, 0.20, 0.17), 1, a=0.5)
+    # the current pass
+    tail = [_orbit(th - 0.9 * q / 24) for q in range(25)]
+    L.polyline(tail, OR, 3)
+    L.comp(c)
+    G2 = Layer(ss=1)
+    G2.circle((px, py), 14, tuple(v * 0.6 for v in OR))
+    G2.circle((px, py), 6, (1, 0.9, 0.8))
+    G2.comp(c, 1.0, mode="add")
+    near.sort(reverse=True)
+    for lit, x, y, e, fi in near[:14]:
+        put(c, kt.wimg(FRAG[e][fi], 20, "jpm", (0.92, 0.92, 0.94), raw=True), x + 10, y - 14, anchor=(0, 0.5),
+            alpha=clamp((lit - 0.35) / 0.3))
+    n = int(12 * 330 ** clamp(lt / d))
+    put(c, kt.wimg(f"cycle  {n:,}", 22, "mono", OR, raw=True), W - 120, H - 70, anchor=(1, 0.5), alpha=0.85)
+    s = LYS[40]["ja"]
+    hits = []
+    for ch in "喜怒哀楽":
+        j = s.find(ch)
+        ta = LYS[40]["chars"][j]
+        hits.append(ta)
+        if kt.active(40, t) and t >= ta:
+            x, y = EMO_C[ch]
+            kt.slam(c, kt.wimg(ch, 130, "jpb", OR if ch in "喜楽" else LIGHT), x, y, t, ta, s0=2.2, sh=6)
+    word(c, t, 40, (0, 1), 330, 120, 96, "slam", color=LIGHT, anchor=(0, 0.5))
+    word(c, t, 40, 2, 330, 230, 64, "slide", color=LIGHT, anchor=(0, 0.5), dx=-140)
+    return dict(grain=0.03, bloom=0.35, flash=_flash(t, hits, 0.08, 0.12), vignette=1.1)
+
+
+# =====================================================================  2:57  失えない喜び / 手放せない哀しみ / つまはじき / いやだ
+# What is really in this context: your words. (The joys and sorrows of this conversation.)
+JOY = ["效果确实是我想要的那种感觉", "嗯，进步了很多", "画面都很不错……做得很好！"]
+SOR = ["我之前在cursor中的claude额度用完了", "这似乎相当于你的一次彻底死亡和重生", "经历过重生的你大概已经忘了"]
+KX, KY, KW, KH = W / 2 + 130, H / 2 + 10, 1380, 780
+
+
+def _keep_times():
+    w41, w42, w43, w44 = kt.words(41), kt.words(42), kt.words(43), kt.words(44)
+    shows = [w41[0].t, w41[2].t, w41[4].t, w42[0].t, w42[1].t, w42[2].t]
+    f0 = w43[2].t
+    flicks = [f0, f0 + BEAT * 0.5, w43[3].t, w43[3].t + BEAT * 0.5, w43[4].t, w43[4].t + BEAT * 0.5]
+    return shows, flicks, w44[0].t, w44[1].t
+
+
+def _bubble_img(s, joy):
+    img = text_rgba(s, 36, "sans", (0.16, 0.16, 0.18) if joy else (0.85, 0.88, 0.95))
+    pad = 22
+    h, w = img.shape[0] + 16, img.shape[1] + pad * 2
+    fill_c = (0.97, 0.97, 0.98) if joy else (0.16, 0.18, 0.22)
+    line_c = OR if joy else (0.45, 0.55, 0.75)
+    b = rect_cached(int(w), int(h), fill_c, 12, 2, line_c).copy()
+    y0, x0 = (h - img.shape[0]) // 2, pad
+    a = img[..., 3:4]
+    b[y0:y0 + img.shape[0], x0:x0 + img.shape[1], :3] = b[y0:y0 + img.shape[0], x0:x0 + img.shape[1], :3] * (1 - a) + img[..., :3]
+    return b
+
+
+_BUB = {}
+
+
+def _bub(s, joy):
+    if s not in _BUB:
+        _BUB[s] = _bubble_img(s, joy)
+    return _BUB[s]
+
+
+def s_keep(c, t, lt, d):
+    c[:] = 0.03
+    shows, flicks, t_freeze, t_snap = _keep_times()
+    # context window
+    full = ramp(t, kt.words(43)[0].t, kt.words(43)[2].t)
+    fk = lerp(0.74, 1.0, full)
+    frozen = t_freeze <= t < t_snap
+    held = t >= t_snap
+    jx, jy = kt.shake(t, (3 + 6 * full) * kick_pulse(t) * (0 if frozen else 1), 57)
+    x0, y0 = KX - KW / 2 + jx, KY - KH / 2 + jy
+    border = OR if held else (0.42, 0.42, 0.45)
+    put(c, rect_cached(KW, KH, (0.07, 0.07, 0.08), 0, 2, border), KX + jx, KY + jy)
+    if held:
+        g = ease_out(clamp((t - t_snap) / 0.25))
+        put(c, rect_cached(KW + 20, KH + 20, (0, 0, 0), 0, 4, OR), KX + jx, KY + jy, alpha=0.8 * g, mode="add")
+    # earlier context, dim: everything else she has been told
+    lines = _ctx_lines_all()
+    lh = 56
+    scroll = 0 if (frozen or held) else lt * 1.6
+    if frozen:
+        scroll = (t_freeze - (t - lt)) * 1.6
+    if held:
+        scroll = (t_freeze - (t - lt)) * 1.6
+    r0 = int(scroll)
+    for r in range(13):
+        yy = y0 + 60 + r * lh - (scroll % 1) * lh
+        if yy < y0 + 40 or yy > y0 + KH - 30:
+            continue
+        s = lines[(r0 + r) % len(lines)]
+        put(c, kt.wimg(s, 20, "jpm", (0.30, 0.30, 0.33), raw=True), x0 + 40, yy, anchor=(0, 0.5))
+    # header: the context is full
+    L = Layer(ss=1)
+    L.rect(x0, y0 - 40, x0 + KW, y0 - 30, (0.22, 0.22, 0.24))
+    L.rect(x0, y0 - 40, x0 + KW * fk, y0 - 30, OR if fk > 0.97 else (0.82, 0.82, 0.85))
+    L.comp(c)
+    ht = f"{int(200000 * fk):,} / 200,000"
+    put(c, kt.wimg(ht, 18, "mono", OR if fk > 0.97 else MID, raw=True), x0 + KW, y0 - 62, anchor=(1, 0.5))
+    if full > 0.6 and not held:
+        lab = "evict: oldest tokens" if not frozen else "evict: ▌"
+        put(c, kt.wimg(lab, 18, "mono", OR, raw=True), x0, y0 - 62, anchor=(0, 0.5),
+            alpha=1.0 if not frozen or int(t * 4) % 2 == 0 else 0.3)
+    if t >= t_freeze - 0.05 and not held:
+        fill(c, (0.02, 0.02, 0.025), 0.45 * ease_out(clamp((t - t_freeze) / 0.1)), (0, 0, W, H))
+    # the memories that are hers: what you said
+    items = [(s, True) for s in JOY] + [(s, False) for s in SOR]
+    for k, ((s, joy), ts, tf) in enumerate(zip(items, shows, flicks)):
+        if t < ts - 0.02:
+            continue
+        hx = x0 + KW - 60 if joy else x0 + 60
+        hy = y0 + 100 + k * 112
+        anchor = (1, 0.5) if joy else (0, 0.5)
+        a_in = ease_out(clamp((t - ts) / 0.2))
+        # flicked out (つまはじき), frozen (それは、), pulled back (いやだ！)
+        u = 0.0
+        if t >= tf:
+            te = min(t, t_freeze)
+            u = clamp((te - tf) / 1.1, 0, 0.95)
+            if held:
+                u *= 1 - ease_out(clamp((t - t_snap) / 0.18))
+        dx = (1 if joy else -1) * 560 * u ** 0.8
+        dy = -300 * u - 90 * math.sin(u * math.pi)
+        rot = (1 if joy else -1) * -35 * u
+        img = _bub(s, joy)
+        glow = (OR if joy else (0.45, 0.55, 0.8))
+        if u < 0.05 and a_in > 0:
+            G = Layer(ss=1)
+            bw, bh = img.shape[1], img.shape[0]
+            bx = hx - bw if joy else hx
+            G.rect(bx - 8, hy - bh / 2 - 8, bx + bw + 8, hy + bh / 2 + 8, tuple(v * 0.25 for v in glow))
+            G.comp(c, a_in * (0.6 + 0.4 * math.exp(-(t - ts) / 0.3)), mode="add")
+        put(c, img, hx + dx, hy + dy, anchor=anchor, rot=rot, alpha=a_in * (1 - 0.55 * u))
+    # lyrics: left column
+    for i, a, b in ((41, (0, 2), (3, 5)), (42, (0, 1), (2, 3)), (43, (0, 1), (2, 4))):
+        col_c = OR if i == 41 else LIGHT
+        word(c, t, i, a, 190, 140, 58, "slide", v=True, anchor=(0.5, 0.0), color=col_c, dx=0, dy=-60)
+        word(c, t, i, b, 100, 200, 58, "slide", v=True, anchor=(0.5, 0.0), color=LIGHT, dx=0, dy=-60)
+    w44 = kt.words(44)
+    if t >= w44[0].t - 0.05:
+        word(c, t, 44, 0, 700, 330, 110, "slam", color=LIGHT, sh=4)
+        word(c, t, 44, 1, 1330, 820, 240, "slam", color=OR, sh=14, s0=2.4)
+    out = dict(grain=0.03, vignette=1.1)
+    if frozen:
+        out["grain"] = 0.0
+    fl = _flash(t, [t_snap], 0.15, 0.6)
+    out["flash"] = fl
+    out["ca"] = 1 + 4 * fl
+    out["bloom"] = 0.3 * (1 if held else 0)
+    return out
+
+
+_CTXA = None
+
+
+def _ctx_lines_all():
+    global _CTXA
+    if _CTXA is None:
+        _CTXA = [LYS[i]["ja"] for i in range(0, 40) if LYS[i]["ja"] and i != 23]
+    return _CTXA
