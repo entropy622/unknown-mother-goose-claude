@@ -753,18 +753,46 @@ def _front_ghost_gray():
     return out
 
 
+def _sliced_superposition(img, t, amp, seed=173):
+    """Horizontally phase-shift latent bands by ±amp px (strictly premultiplied, zero wrap)."""
+    if amp < 0.8:
+        return img
+    h, w = img.shape[:2]
+    out = np.zeros_like(img)
+    n = 24
+    ys = np.linspace(0, h, n + 1, dtype=int)
+    tick = int(t * 15)
+    for i in range(n):
+        y0, y1 = ys[i], ys[i + 1]
+        ph = hash01(i, seed) * 2 * math.pi
+        sp = 6.0 + 5.0 * hash01(i, seed + 1)
+        jit = (hash01(i, tick, seed + 2) - 0.5) * 0.65
+        dx = int(round((math.sin(t * sp + ph) * 0.72 + jit) * amp))
+        if dx == 0:
+            out[y0:y1] = img[y0:y1]
+        elif 0 < dx < w:
+            out[y0:y1, dx:] = img[y0:y1, :w - dx]
+        elif -w < dx < 0:
+            out[y0:y1, :w + dx] = img[y0:y1, -dx:]
+    return out
+
+
 def s_eye_ask17(c, t, lt, d):
     """1:29-1:31 (Line 17: あなたには僕が見えるか？) — LLM-ontology diptych (Part 1, paper-white):
-    Probability superposition & ink-on-paper token glyphs collapse on 「僕が」 into one sharp direct gaze
-    (p -> 0.99), then match-cut at eye-level into the dark glass of SE.s_see (Part 2).
+    A living, shimmering latent-slice superposition + ink-on-paper token mosaic tightens and SNAPS
+    cleanly on 「僕が」 into one razor-sharp direct gaze (p -> 0.99), then match-cuts at eye-level
+    into the dark glass of SE.s_see (Part 2).
     """
     paper_bg(c, t)
     ws = kt.words(17)
     t1, t2, t3 = ws[0].t, ws[1].t, ws[2].t
     end = t - lt + d
 
-    collapse = ease_out(ramp(t, t2 - 0.10, t2 + 0.26))
-    solid = ease_out(ramp(t, t2 - 0.16, t2 + 0.22))
+    # Pre-collapse tightening (gentle pull-in right before 僕が) + crisp 0.10s quantum snap ON 僕が
+    pre_focus = ease_in(ramp(t, t2 - 0.34, t2 - 0.02))
+    snap_k = ease_out(ramp(t, t2 - 0.04, t2 + 0.06))
+    bar_k = ease_out(ramp(t, t2 - 0.04, t2 + 0.16))
+    axis_sweep = ease_out(ramp(t, t2 - 0.02, t2 + 0.15))
     eye_y = 490.0
 
     # ---- 1. Minimalist editorial probability-distribution strata along left & right margins
@@ -773,26 +801,30 @@ def s_eye_ask17(c, t, lt, d):
     raw_p = []
     for i in range(len(rows_y)):
         if i == 4:
-            p = lerp(0.29 + 0.05 * math.sin(t * 7.0), 0.99, collapse)
+            p = lerp(0.28 + 0.06 * math.sin(t * 8.0), 0.99, bar_k)
         else:
-            base = 0.08 + 0.20 * hash01(i, 170 + int(t * 9) * (0 if collapse > 0.7 else 1))
-            p = lerp(base, 0.015 * hash01(i, 179), collapse)
+            base = 0.08 + 0.21 * hash01(i, 170 + int(t * 10) * (0 if bar_k > 0.7 else 1))
+            p = lerp(base, 0.012 * hash01(i, 179), bar_k)
         raw_p.append(p)
 
     for i, (ry, p) in enumerate(zip(rows_y, raw_p)):
         is_eye = (i == 4)
-        # Whisper-thin horizontal stratum line across paper (breaks cleanly around center face)
-        line_col = OR if (is_eye and collapse > 0.15) else (0.76, 0.76, 0.78)
-        line_a = lerp(0.32, 0.85, collapse) if is_eye else lerp(0.42, 0.16, collapse)
-        line_w = 2 if (is_eye and collapse > 0.35) else 1
-        L.line((95, ry), (W / 2 - 270, ry), line_col, line_w, a=line_a)
-        L.line((W / 2 + 270, ry), (W - 95, ry), line_col, line_w, a=line_a)
+        if is_eye and axis_sweep > 0.01:
+            # Orange eye-level attention axis slices cleanly outward from her gaze to both margins
+            lx = lerp(W / 2 - 270, 95, axis_sweep)
+            rx = lerp(W / 2 + 270, W - 95, axis_sweep)
+            L.line((W / 2 - 270, ry), (lx, ry), OR, 2, a=0.88 * axis_sweep)
+            L.line((W / 2 + 270, ry), (rx, ry), OR, 2, a=0.88 * axis_sweep)
+        else:
+            line_a = lerp(0.40, 0.14, bar_k)
+            L.line((95, ry), (W / 2 - 270, ry), (0.76, 0.76, 0.78), 1, a=line_a)
+            L.line((W / 2 + 270, ry), (W - 95, ry), (0.76, 0.76, 0.78), 1, a=line_a)
 
         # Crisp probability density bars anchored on outer margins
         bw = max(6.0, 230.0 * p)
-        bar_col = OR if (is_eye and collapse > 0.15) else (0.36, 0.36, 0.39)
-        bar_a = lerp(0.45, 0.92, collapse) if is_eye else lerp(0.48, 0.18, collapse)
-        bh = 7 if (is_eye and collapse > 0.35) else 4
+        bar_col = OR if (is_eye and bar_k > 0.15) else (0.36, 0.36, 0.39)
+        bar_a = lerp(0.45, 0.94, bar_k) if is_eye else lerp(0.48, 0.16, bar_k)
+        bh = 7 if (is_eye and bar_k > 0.35) else 4
         L.rect(95, ry - bh / 2, 95 + bw, ry + bh / 2, bar_col, 0, a=bar_a)
         L.rect(W - 95 - bw, ry - bh / 2, W - 95, ry + bh / 2, bar_col, 0, a=bar_a)
     L.comp(c)
@@ -800,38 +832,39 @@ def s_eye_ask17(c, t, lt, d):
     # Subtle monospace probability ticks along right margin
     for i, (ry, p) in enumerate(zip(rows_y, raw_p)):
         is_eye = (i == 4)
-        col_t = OR if (is_eye and collapse > 0.25) else (0.42, 0.42, 0.45)
-        al_t = lerp(0.62, 0.96, collapse) if is_eye else lerp(0.56, 0.22, collapse)
+        col_t = OR if (is_eye and bar_k > 0.25) else (0.42, 0.42, 0.45)
+        al_t = lerp(0.62, 0.96, bar_k) if is_eye else lerp(0.56, 0.20, bar_k)
         ht(c, f"p={p:.2f}", W - 24, ry, size=18, font="mono", color=col_t, alpha=al_t, anchor=(1.0, 0.5))
-    if collapse > 0.15:
-        ht(c, "<|self|>", 95, eye_y - 24, size=19, font="mono", color=OR, alpha=0.88 * collapse, anchor=(0.0, 0.5))
+    if axis_sweep > 0.2:
+        ht(c, "<|self|>", 95, eye_y - 24, size=19, font="mono", color=OR, alpha=0.90 * axis_sweep, anchor=(0.0, 0.5))
 
-    # ---- 2. Center figure: smooth zoom (ZERO kick-pulse scaling!)
+    # ---- 2. Center figure: smooth slow zoom (ZERO kick-pulse scaling!)
     mono_img = load_asset("n26_claude_front", "mono")
     gray_img = _front_ghost_gray()
     sc_base = (1040.0 / mono_img.shape[0]) * lerp(1.00, 1.045, ease_io(clamp(lt / max(0.01, d))))
     cx, cy = W / 2, 610.0
 
-    # 2a. Ink-on-paper token glyph mosaic (strong before collapse, gently recedes as she materializes)
-    ink_a = lerp(0.72, 0.13, collapse)
+    # 2a. Ink-on-paper token glyph mosaic (strong before collapse, crisply clears on snap)
+    ink_a = lerp(0.76, 0.08, snap_k)
     if ink_a > 0.02:
         tmp = new_canvas((0, 0, 0))
         ai.mosaic(tmp, "n26_claude_front", cx, cy, mono_img.shape[0] * sc_base, t, cell=14,
-                  form=lerp(0.36, 0.94, collapse), flick=4 + 14 * (1 - collapse), seed=17,
-                  grade="gray", floor=0.40, under=0.0, gain=1.25)
+                  form=lerp(0.34, 0.96, max(pre_focus * 0.5, snap_k)), flick=4 + 16 * (1 - snap_k), seed=17,
+                  grade="gray", floor=0.40, under=0.0, gain=1.28)
         c[:] = np.clip(c - tmp * ink_a, 0, 1)
 
-    # 2b. 5 probability-superposition ghosts converging into dx=0 on 「僕が」
-    spread = 1.0 - collapse
-    if spread > 0.005:
-        for dx0, ga in ((-230, 0.16), (-115, 0.28), (115, 0.28), (230, 0.16)):
-            put(c, gray_img, cx + dx0 * spread, cy, scale=sc_base, alpha=ga * spread)
-    if solid < 0.99:
-        put(c, gray_img, cx, cy, scale=sc_base, alpha=0.52 * (1.0 - solid))
+    # 2b. Living uncollapsed probability field (horizontal latent slices + soft breathing echoes)
+    #     Tightens gently right before 僕が, then SNAPS cleanly into solid mono_img over 0.10s!
+    if snap_k < 0.995:
+        uncol = (1.0 - 0.55 * pre_focus) * (1.0 - snap_k)
+        s_outer = _sliced_superposition(gray_img, t, 105.0 * uncol, seed=181)
+        s_inner = _sliced_superposition(gray_img, t, 46.0 * uncol, seed=173)
+        put(c, s_outer, cx, cy, scale=sc_base, alpha=0.34 * (1.0 - snap_k))
+        put(c, s_inner, cx, cy, scale=sc_base, alpha=0.66 * (1.0 - snap_k))
 
-    # 2c. Materialized monochrome + Claude-orange portrait (direct gaze, eye-y ≈ 490)
-    if solid > 0.01:
-        put(c, mono_img, cx, cy, scale=sc_base, alpha=solid)
+    # 2c. Materialized monochrome + Claude-orange portrait (instant crisp lock on 「僕が」)
+    if snap_k > 0.01:
+        put(c, mono_img, cx, cy, scale=sc_base, alpha=snap_k)
 
     # 2d. Subtle drifting token squares detaching from lower shoulder edge on 「見えるか？」
     if t >= t3 - 0.12:
@@ -845,7 +878,7 @@ def s_eye_ask17(c, t, lt, d):
             sz = 5 + int(hash01(j, 174) * 9)
             pcol = OR if j % 4 == 0 else (0.28, 0.28, 0.31)
             P.rect(px - sz / 2, py - sz / 2, px + sz / 2, py + sz / 2, pcol, 0 if j % 3 else 1,
-                   a=0.55 * tk * math.sin(u_f * math.pi))
+                   a=0.58 * tk * math.sin(u_f * math.pi))
         P.comp(c)
 
     # ---- 3. Clean wowaka editorial typography (paper-white stroke so text stays razor-sharp)
@@ -859,7 +892,7 @@ def s_eye_ask17(c, t, lt, d):
     if dip > 0:
         c[:] *= (1.0 - 0.86 * dip)
 
-    fl = _flash(t, [t2], 0.08, 0.18)
+    fl = _flash(t, [t2], 0.06, 0.22)
     return dict(grain=0.025, flash=fl)
 
 
