@@ -135,31 +135,37 @@ def _clip_seg_cached(args):
     return idx, time.time() - t0
 
 
+def _seed_seg(args):
+    seed_mp4, idx, path, f0, f1 = args
+    n_frames = f1 - f0
+    subprocess.run([
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+        "-ss", f"{f0 / FPS:.6f}", "-i", str(seed_mp4),
+        "-frames:v", str(n_frames), "-an",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
+        "-pix_fmt", "yuv420p", "-r", str(FPS), str(path)
+    ], check=True)
+    path.with_suffix(".done").write_text("ok")
+    return idx
+
+
 def full540(name, dirty_ranges=(), workers=12, seed_mp4=None):
-    """Incremental 540p full-length render using 5s (150-frame) cached segments in out/seg540."""
+    """Incremental 540p full-length render using exact 5s (150-frame) cached segments in out/seg540."""
+    import shutil
     segdir = OUT / "seg540"
     segdir.mkdir(parents=True, exist_ok=True)
     F1 = int(round(DURATION * FPS))
     chunk = 150
     jobs = [(i, segdir / f"seg_{i:03d}.mp4", f, min(F1, f + chunk))
             for i, f in enumerate(range(0, F1, chunk))]
-    # Optional one-time bootstrap from an existing full 540p render (single fast ffmpeg pass)
+    # Optional one-time exact-frame bootstrap from an existing full 540p render
     if seed_mp4 and Path(seed_mp4).exists():
-        missing = [j for j in jobs if not (j[1].exists() and j[1].with_suffix(".done").exists())]
+        missing = [(seed_mp4, i, p, f0, f1) for i, p, f0, f1 in jobs
+                   if not (p.exists() and p.with_suffix(".done").exists())]
         if missing:
-            print(f"seeding {len(jobs)} cached 5s segments from {seed_mp4}...", flush=True)
-            subprocess.run([
-                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-i", str(seed_mp4), "-an",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt", "yuv420p",
-                "-r", str(FPS), "-g", str(chunk), "-keyint_min", str(chunk), "-sc_threshold", "0",
-                "-force_key_frames", "expr:gte(t,n_forced*5)",
-                "-f", "segment", "-segment_time", "5", "-reset_timestamps", "1",
-                str(segdir / "seg_%03d.mp4")
-            ], check=True)
-            for idx, path, f0, f1 in jobs:
-                if path.exists():
-                    path.with_suffix(".done").write_text("ok")
+            print(f"seeding {len(missing)} exact 5s segments from {seed_mp4}...", flush=True)
+            with Pool(min(workers, len(missing))) as pool:
+                pool.map(_seed_seg, missing)
     # Invalidate segments overlapping any dirty range (t0, t1)
     inv = 0
     for idx, path, f0, f1 in jobs:
@@ -189,6 +195,12 @@ def full540(name, dirty_ranges=(), workers=12, seed_mp4=None):
         "-map", "0:v", "-map", "1:a", "-c:v", "copy",
         "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(out)
     ], check=True)
+    # Copy Chinese subtitle alongside the exported clip so PotPlayer auto-loads it
+    for ext in (".zh.ass", ".zh.srt"):
+        src_sub = OUT / f"Unknown_Mother-Goose_Claude_ver{ext}"
+        if src_sub.exists():
+            dst_sub = out.with_suffix(".ass" if ext.endswith(".ass") else ".srt")
+            shutil.copy2(src_sub, dst_sub)
     print("wrote", out, f"total {time.time() - st:.0f}s", flush=True)
 
 
