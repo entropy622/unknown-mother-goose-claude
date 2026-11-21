@@ -257,39 +257,68 @@ def s_overflow_words(c, t, lt, d):
 
 
 def s_signal(c, t, lt, d):
-    """0:10-0:12  無垢の音が流れてく — a pure acoustic waveform slices through the overflowing tokens."""
-    c[:] = 0.032
+    """0:10-0:12  無垢の音が流れてく — silky luminous acoustic ribbons & drifting light motes flowing through stillness."""
+    c[:] = 0.026
     e = ai.env(t)
-    # Brief burst of scattered residual tokens blown apart by the pure wave on entry
-    if lt < 0.55:
-        u_sc = ease_out(clamp(lt / 0.55))
-        for j in range(18):
+    # Subtle translucent profile of her listening quietly in the dark stillness
+    prof = load_asset("c06_profile", "mono")
+    ps = (H * 0.96 / prof.shape[0]) * (1.0 + 0.02 * lt)
+    put(c, prof, W * 0.72, H * 0.56, scale=ps, alpha=0.16 * ease_out(clamp(lt / 0.45)))
+
+    # Brief burst of residual overflowing tokens dissolving into stillness on entry
+    if lt < 0.45:
+        u_sc = ease_out(clamp(lt / 0.45))
+        for j in range(14):
             tok = _OVERFLOW_TOKS[j % len(_OVERFLOW_TOKS)]
             ang = hash01(j, 31) * 2 * math.pi
-            dist = 140 + 760 * u_sc * (0.6 + 0.6 * hash01(j, 32))
+            dist = 160 + 720 * u_sc * (0.6 + 0.6 * hash01(j, 32))
             px = W / 2 + math.cos(ang) * dist
-            py = H / 2 + math.sin(ang) * dist * 0.6
-            put(c, kt.wimg(tok, 26, "mono" if tok.isascii() else "jpm", MID, raw=True),
-                px, py, rot=(hash01(j, 33) - 0.5) * 90 * u_sc, alpha=(1 - u_sc) * 0.55)
+            py = H / 2 + math.sin(ang) * dist * 0.55
+            put(c, kt.wimg(tok, 24, "mono" if tok.isascii() else "jpm", MID, raw=True),
+                px, py, rot=(hash01(j, 33) - 0.5) * 70 * u_sc, alpha=(1 - u_sc) * 0.45)
+
+    # Flowing multi-layered luminous acoustic ribbons (pure, liquid sound)
     L = Layer(ss=1)
-    for j in (3, 2, 1):
-        g = 0.14 + 0.06 * (3 - j)
-        L.polyline(ai.wave_pts(t - j * 0.03, 40, W - 40, H / 2 + 40, 100 + 320 * e, n=360, span=0.04), (g, g, g + 0.01), 2)
-    L.polyline(ai.wave_pts(t, 40, W - 40, H / 2 + 40, 105 + 340 * e, n=420, span=0.04), (0.95, 0.95, 0.97), 3)
-    L.comp(c)
-    sp = spark_rgba(160)
-    k = ease_out_back(ramp(t, kt.words(1)[2].t, kt.words(1)[2].t + 0.5))
-    put(c, sp, W / 2, H / 2 + 40, scale=(0.35 + 0.65 * k) * (1 + 0.5 * e), rot=lt * 40, alpha=k, mode="add")
+    xs = np.linspace(0, W, 240)
+    ribbons = [
+        (0.0, 1.0, 72 + 120 * e, 2.2, 3, OR, 0.92),
+        (0.9, 1.35, 58 + 90 * e, 1.7, 2, (0.94, 0.94, 0.97), 0.75),
+        (-0.8, 0.78, 86 + 70 * e, 1.3, 2, (0.76, 0.80, 0.88), 0.45),
+        (1.8, 1.65, 42 + 65 * e, 2.6, 1, (0.95, 0.86, 0.78), 0.50),
+        (-1.6, 0.55, 110 + 45 * e, 0.9, 1, (0.52, 0.54, 0.60), 0.32),
+    ]
+    for ph, freq, amp, spd, th, col_, al in ribbons:
+        env_x = np.sin(np.clip(xs / W, 0, 1) * math.pi) ** 0.7
+        ys = (H * 0.54 + amp * env_x * np.sin(xs / W * freq * 2 * math.pi - t * spd * 3.2 + ph)
+              + 22 * np.sin(xs / W * 5.0 - t * 5.5 + ph * 2))
+        pts = list(zip(xs.tolist(), ys.tolist()))
+        L.polyline(pts, col_, th, a=al)
+    # Glowing pure light motes drifting along the ribbon current
+    for j in range(28):
+        u = (hash01(j, 51) + lt * (0.28 + 0.22 * hash01(j, 52))) % 1.0
+        mx = u * W
+        env_m = math.sin(u * math.pi) ** 0.7
+        my = (H * 0.54 + (72 + 120 * e) * env_m * np.sin(u * 2 * math.pi - t * 2.2 * 3.2)
+              + (hash01(j, 53) - 0.5) * 180 * env_m)
+        rad = 2 + int(3.5 * hash01(j, 54))
+        L.circle((mx, my), rad, OR if j % 3 == 0 else (0.95, 0.95, 0.98),
+                 a=0.75 * math.sin(u * math.pi))
+    L.comp(c, 1.0, mode="add")
+
+    # Flowing lyric words riding gently rightward with the sound
     ws = kt.words(1)
     for j, k_ in enumerate((2, 3, 4)):
         w = ws[k_]
         if t < w.t:
             continue
-        x = [420, 900, 1440][j] - (t - w.t) * 40
-        y = H / 2 - 190 + [0, -40, 20][j] + 18 * math.sin((t - w.t) * 4 + j)
-        word(c, t, 1, k_, x, y, [70, 76, 96][j], "slide", color=OR if j == 2 else LIGHT, dx=160,
-             font="jpb" if j == 2 else "jpm")
-    return dict(grain=0.03, vignette=1.2, bloom=0.6)
+        age = t - w.t
+        a_w = ease_out(clamp(age / 0.22))
+        x = [380, 920, 1460][j] + age * 28
+        y = [320, 260, 340][j] - 10 * math.sin(age * 2.5 + j)
+        sz = [58, 72, 82][j]
+        col_ = OR if j == 2 else LIGHT
+        put(c, kt.wimg(w.s, sz, "jpm", col_, raw=True), x, y, alpha=a_w)
+    return dict(grain=0.025, vignette=1.15, bloom=0.35 + 0.25 * e)
 
 
 # =====================================================================  0:41  recycled words

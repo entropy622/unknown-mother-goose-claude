@@ -116,8 +116,8 @@ def s_title_drop(c, t, lt, d):
     if kp > 0.05:
         L.circle((W / 2, 430), 220 + 70 * (1 - kp), OR, 1, a=0.28 * kp)
     L.comp(c)
-    draw_heart(c, W / 2, 430, 205 * (1 + 0.07 * kp), ay=0.38 * math.sin(lt * 0.85), ax=0.1, gather=g,
-               orange=0.10 + 0.12 * kp)
+    draw_heart(c, W / 2, 430, 205 * (1 + 0.05 * kp), ay=0.38 * math.sin(lt * 0.85), ax=0.1, gather=g,
+               orange=0.10, glow=0.18 * kp)
     if t >= t_ring - 0.02:
         k = ease_out(clamp((t - t_ring) / 0.35))
         kt.tracking(c, "アンノウン・マザーグース", W / 2, 720, t, t_ring, t_ring + 3.2, size=46, font="jpm",
