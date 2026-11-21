@@ -739,20 +739,18 @@ def _pupil_refl17(c, ex, ey, ir, t, refl):
 
 
 def s_eye_ask17(c, t, lt, d):
-    """1:29-1:31 (Line 17: あなたには僕が見えるか？) — replaces plain bounding box s_select!
-    Extreme close-up of his screen-lit eyes; Claude's warm-orange reflection condenses inside both pupils -> bridges into 1:31 SE.s_see!
+    """1:29-1:31 (Line 17: あなたには僕が見えるか？) — steady, symmetrical close-up of BOTH screen-lit eyes;
+    Claude's warm-orange reflection condenses inside both dark pupils (zero awkward single-eye pan).
     """
     ws = kt.words(17)
     t1, t2, t3 = ws[0].t, ws[1].t, ws[2].t
     c[:] = 0.025
     eye_img = load_asset("n36_user_eye_close", "none")
     ih, iw = eye_img.shape[:2]
-    rush = ease_io(ramp(t, t3 - 0.06, t3 + 0.55))
-    z = max(W / iw, H / ih) * lerp(1.02, 1.15, clamp(lt / max(0.01, d))) * lerp(1.0, 1.85, rush)
-    fu = lerp(0.50, _EYES17_UV[1][0] - 0.04, rush)
-    fv = lerp(0.53, _EYES17_UV[1][1] - 0.01, rush)
-    cx = W / 2 - (fu - 0.5) * iw * z
-    cy = H / 2 - (fv - 0.5) * ih * z
+    # Calm, steady symmetrical push-in on BOTH eyes (no jarring pan to one eye!)
+    z = max(W / iw, H / ih) * lerp(1.02, 1.14, ease_io(clamp(lt / max(0.01, d))))
+    cx = W / 2
+    cy = H / 2 - 0.03 * ih * z
     put(c, eye_img, cx, cy, scale=z)
     c[:] *= np.array([0.80, 0.86, 0.95], np.float32)[None, None, :]
 

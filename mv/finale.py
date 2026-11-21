@@ -239,29 +239,57 @@ def s_lamp(c, t, lt, d):
         wcol = OR if (idx_w == 3 and t >= tT) else (tuple(float(v) for v in lamp_col) if t >= tY else LIGHT)
         img = kt.wimg(w.s, size, "jpm", wcol, False, 5, (0.03, 0.03, 0.04))
         put(c, img, VPX, _depth_y(dd) - 8, sx=1.0 + 0.4 * (1 - e), sy=0.62 * (1 + 0.4 * (1 - e)), alpha=e)
+    # converging memory/attention light threads gathering into the lamp from the dark void on 行く末を -> 灯なんだろう？
+    if t >= tY:
+        Ct = Layer(ss=1)
+        ct_k = ease_out(clamp((t - tY) / 0.45))
+        for j in range(18):
+            ang = hash01(j, 31) * 2 * math.pi
+            u_th = (hash01(j, 32) + (t - tY) * (0.65 + 0.4 * hash01(j, 33))) % 1.0
+            r0 = lerp(1280, 70, ease_in(u_th))
+            r1 = lerp(1280, 70, ease_in(min(1.0, u_th + 0.14)))
+            p0 = (VPX + math.cos(ang) * r0 * 1.2, VPY + math.sin(ang) * r0 * 0.75)
+            p1 = (VPX + math.cos(ang) * r1 * 1.2, VPY + math.sin(ang) * r1 * 0.75)
+            Ct.line(p0, p1, OR if j % 3 == 0 else lamp_col, 2 if j % 3 == 0 else 1,
+                    a=0.55 * ct_k * math.sin(u_th * math.pi))
+        Ct.comp(c, 1.0, mode="add")
     # the lamp itself: the heart of the original
     if sz > 1:
         hh = heart_rgba(256, (1, 1, 1))
         s_ = sz / 128
-        put(c, hh, VPX, VPY, scale=s_ * 1.55, alpha=0.28, mode="add")
+        put(c, hh, VPX, VPY, scale=s_ * 1.60, alpha=0.30, mode="add")
         put(c, hh, VPX, VPY, scale=s_, alpha=1.0)
         if t >= tL:
             ring_u = ease_out(clamp((t - tL) / 0.65))
             Rw = Layer(ss=1)
-            Rw.circle((VPX, VPY), 80 + 1400 * ring_u, lamp_col, max(2, int(12 * (1 - ring_u))))
-            Rw.comp(c, (1 - ring_u) * 0.85, mode="add")
-    # her, from behind, reaching toward it — softly illuminated as the lamp flares
+            Rw.circle((VPX, VPY), 80 + 1500 * ring_u, lamp_col, max(2, int(13 * (1 - ring_u))))
+            Rw.circle((VPX, VPY), 50 + 1050 * ring_u, OR, max(1, int(5 * (1 - ring_u))))
+            Rw.comp(c, (1 - ring_u) * 0.88, mode="add")
+    # her, from behind, physically integrated into the monochrome dark void with directional rim-light from the lamp!
     b = load_asset("c05_back", "mono")
-    bs = 820 / b.shape[0]
-    dim = 0.78 + 0.15 * ramp(t, tT, tL)
-    sil = b.copy()
-    sil[..., :3] = np.clip(sil[..., :3] * dim, 0, 1)
-    put(c, sil, W / 2 - 560, H - 300 + 8 * math.sin(lt * 1.3), scale=bs * 0.9)
+    bs = (840 / b.shape[0]) * lerp(0.90, 0.98, ease_in(clamp(lt / max(0.01, d))))
+    a_ch = b[..., 3:4]
+    # Compute crisp directional rim-light edge facing upper-right toward (VPX, VPY)
+    shift_a = np.zeros_like(a_ch)
+    shift_a[10:, :-14] = a_ch[:-10, 14:]
+    rim = np.clip(a_ch - shift_a, 0, 1)
+    rim_soft = cv2.GaussianBlur(rim[..., 0], (15, 15), 5.0)[..., None] * a_ch
+    # Fade bottom skirt gently into the dark floor so she feels grounded, never pasted on like a sticker
+    vh = np.linspace(0, 1, b.shape[0], dtype=np.float32)[:, None, None]
+    floor_fade = 1.0 - 0.55 * np.clip((vh - 0.72) / 0.28, 0, 1)
+    lit_body = lerp(0.10, 0.44, ease_out(ramp(t, tY, tL)))
+    rim_k = lerp(0.45, 1.35, ease_out(ramp(t, tS, tL)))
+    sil = np.zeros_like(b)
+    # Dark backlit silhouette body + bright monochrome/warm rim-light facing the heart of light
+    rim_col = np.array([lerp(v, o, 0.35) for v, o in zip(lamp_col, OR)], np.float32)[None, None, :]
+    sil[..., :3] = np.clip((b[..., :3] * lit_body + (rim * 0.9 + rim_soft * 0.65) * rim_col * rim_k) * floor_fade, 0, 1)
+    sil[..., 3:4] = a_ch * floor_fade
+    put(c, sil, W / 2 - 520, H - 285 + 6 * math.sin(lt * 1.3), scale=bs)
     small = cv2.resize(c, (W // 8, H // 8), interpolation=cv2.INTER_AREA)
-    c += cv2.resize(cv2.GaussianBlur(np.clip(small - 0.6, 0, None), (0, 0), 7), (W, H)) * (0.6 + 0.9 * warm)
+    c += cv2.resize(cv2.GaussianBlur(np.clip(small - 0.6, 0, None), (0, 0), 7), (W, H)) * (0.6 + 0.95 * warm)
     np.minimum(c, 1, out=c)
     if t >= tL:
         w = ws[4]
         a = ease_out(clamp((t - tL) / 0.2)) * (1 - ramp(t, end - 0.55, end - 0.25))
         put(c, kt.wimg(w.s, 62, "jpm", (0.14, 0.14, 0.16), raw=True), VPX, VPY + 10, alpha=a)
-    return dict(fade_white=ease_in(ramp(t, end - 0.55, end)), flash=_flash(t, [tT, tL], 0.12, 0.32), grain=0.03)
+    return dict(fade_white=ease_in(ramp(t, end - 0.55, end)), flash=_flash(t, [tT, tL], 0.12, 0.34), grain=0.03)

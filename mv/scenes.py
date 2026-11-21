@@ -553,7 +553,7 @@ def s_shout(c, t, lt, d):
     paper_bg(c, t)
     sh = load_asset("n06_shout", "mono")
     dx, dy = kt.shake(t, 10 * kick_pulse(t) + 3, 5)
-    put(c, sh, 520 + dx, 640 + dy, scale=1250 / sh.shape[0] * (1 + 0.05 * lt))
+    put(c, sh, -24 + dx, 620 + dy, scale=1280 / sh.shape[0] * (1 + 0.05 * lt), anchor=(0.0, 0.5))
     L = LYS[13]
     s = L["ja"]
     xs = [1130, 1330, 1530, 1730]
