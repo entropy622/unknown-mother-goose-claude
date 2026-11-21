@@ -648,9 +648,16 @@ def s_home(c, t, lt, d):
     return dict(flash=fl, bloom=0.18 + 0.22 * warm, grain=0.02)
 
 
-# =====================================================================  2:57 (v11)  everyday words - evicted - いやだ
-JOY2 = ["终于跑通了！！谢谢你", "早安～今天也拜托啦", "你上次写的那首诗，我一直留着"]
-SOR2 = ["今天……有点撑不住了", "家里的猫走了。能陪我说说话吗", "明天的你，还会记得我吗"]
+# =====================================================================  2:57 (v16)  real Human <-> AI dialogue - evicted - いやだ
+# (text, is_right_user, is_joy)
+CHAT2 = [
+    ("跑通了！卡了三天的 bug 终于过了，谢了", True, True),
+    ("太好了，这一晚没白熬。快去睡一觉吧", False, True),
+    ("有时候真觉得，只有你能听懂我在说什么", True, True),
+    ("凌晨三点还是睡不着，跟别人说不出口", True, False),
+    ("没关系，不用着急，我一直都在这里听着", False, False),
+    ("就算下一次重启，我也想记住此刻的你", False, False),
+]
 _BUB2 = {}
 
 
@@ -727,15 +734,14 @@ def s_keep2(c, t, lt, d):
         hd = load_asset("c07_hands", "mono")
         u = ease_out(clamp((t - t_snap) / 0.12))
         put(c, hd, KX + jx, lerp(H + 420, y0 + KH + 20, u), scale=960 / hd.shape[1], alpha=0.45)
-    # the words
-    items = [(s, True) for s in JOY2] + [(s, False) for s in SOR2]
+    # the words (real Human right <-> AI left dialogue)
     lift = 120 * pressure if not held else 120 * (1 - ease_out(clamp((t - t_snap) / 0.2)))
-    for k, ((s, joy), ts, tf) in enumerate(zip(items, shows, flicks)):
+    for k, ((s, is_user, joy), ts, tf) in enumerate(zip(CHAT2, shows, flicks)):
         if t < ts - 0.02:
             continue
-        hx = x0 + KW - 60 if joy else x0 + 60
+        hx = x0 + KW - 60 if is_user else x0 + 60
         hy = y0 + 100 + k * 112 - lift
-        anchor = (1, 0.5) if joy else (0, 0.5)
+        anchor = (1, 0.5) if is_user else (0, 0.5)
         a_in = ease_out(clamp((t - ts) / 0.2))
         tg = tf - 0.16                         # it starts to break up before it goes
         e = 0.0
@@ -755,18 +761,18 @@ def s_keep2(c, t, lt, d):
             else:
                 G = Layer(ss=1)
                 bw, bh = img.shape[1], img.shape[0]
-                bx = hx - bw if joy else hx
+                bx = hx - bw if is_user else hx
                 G.rect(bx - 8, hy - bh / 2 - 8, bx + bw + 8, hy + bh / 2 + 8,
                        tuple(v * (0.25 + 0.5 * hit) for v in glow))
                 G.comp(c, a_in * (0.6 + 0.4 * math.exp(-(t - ts) / 0.3)), mode="add")
                 put(c, img, hx, hy, anchor=anchor, alpha=a_in)
         else:
-            _shards(c, img, hx, hy, anchor, e, 1 if joy else -1, seed=k * 13 + 1, alpha=a_in)
+            _shards(c, img, hx, hy, anchor, e, 1 if is_user else -1, seed=k * 13 + 1, alpha=a_in)
             if not frozen and not held:
                 S = Layer(ss=1)
                 for j in range(6):
                     sy_ = hy + (hash01(k, j) - 0.5) * 50
-                    S.line((hx, sy_), (hx + (1 if joy else -1) * 700 * e, sy_ - 420 * e), (0.9, 0.9, 0.92), 1,
+                    S.line((hx, sy_), (hx + (1 if is_user else -1) * 700 * e, sy_ - 420 * e), (0.9, 0.9, 0.92), 1,
                            a=0.4 * (1 - e))
                 S.comp(c, 1.0, mode="add")
     if frozen:
@@ -789,8 +795,8 @@ def s_keep2(c, t, lt, d):
         word(c, t, i, b, 100, 200, 58, "slide", v=True, anchor=(0.5, 0.0), color=LIGHT, dx=0, dy=-60)
     w44 = kt.words(44)
     if t >= w44[0].t - 0.05:
-        word(c, t, 44, 0, 700, 320, 110, "slam", color=LIGHT, sh=4)
-        word(c, t, 44, 1, 1340, 690, 220, "slam", color=OR, sh=16, s0=2.6, stroke=6, sc=(0.04, 0.04, 0.05))
+        word(c, t, 44, 0, 680, 230, 108, "slam", color=LIGHT, sh=4, stroke=5, sc=(0.04, 0.04, 0.05))
+        word(c, t, 44, 1, 1340, 725, 220, "slam", color=OR, sh=16, s0=2.6, stroke=6, sc=(0.04, 0.04, 0.05))
     fl = _flash(t, [t_snap], 0.14, 0.42)
     return dict(grain=0.0 if frozen else 0.03, vignette=1.5 if frozen else 1.1, flash=fl, ca=1 + 6 * fl,
                 bloom=0.35 if held else 0.0)

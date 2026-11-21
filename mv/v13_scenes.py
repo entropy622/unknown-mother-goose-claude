@@ -12,7 +12,7 @@ import numpy as np
 
 from core import *
 from ui import Layer, bubble_rgba
-from geo import paper_bg, draw_heart, draw_globe
+from geo import paper_bg, draw_heart, draw_globe, draw_landscape
 import kt
 import ai
 from scenes import word, row, ht, fade_io, appear, LIGHT, MID, GREY, INKD, OR, LYS, T, B, LY
@@ -364,3 +364,96 @@ def s_messages_art(c, t, lt, d):
         LY.draw_chars(c, LYS[49], list(range(half)), t, 1150, 765, size=size, color=GREY, anchor=(0, 0.5))
         LY.draw_chars(c, LYS[49], list(range(half, len(s))), t, 1150, 835, size=size, color=GREY, anchor=(0, 0.5))
     return dict(letterbox=1.0, vignette=1.25)
+
+
+# =====================================================================  0:28.35-0:36  s_land + subtle back-view ghost dance
+BACK_POSES = ["n35_back_1", "n35_back_2", "n35_back_3", "n35_back_4", "n35_back_5", "n35_back_6"]
+
+
+def s_land_ghost(c, t, lt, d):
+    """0:28.35-0:36  Serene s_land polygon horizon + subtle, non-intrusive pale-grey back-view mechanical dance in the mist."""
+    paper_bg(c, t)
+    # Subtle, non-intrusive pale-grey back-view silhouette stepping rhythmically in the far white mist behind the horizon
+    step_dur = BEAT * 2.0
+    idx = int(math.floor(lt / step_dur))
+    sub = (lt / step_dur) - idx
+    pose = BACK_POSES[idx % len(BACK_POSES)]
+    prev_pose = BACK_POSES[(idx - 1) % len(BACK_POSES)]
+    fade_env = fade_io(lt, d, 0.7, 0.5)
+    # Very soft delayed echo + crisp pale back-view silhouette behind the landscape
+    g_prev = _silhouette(prev_pose, "ghost")
+    g_now = _silhouette(pose, "ghost")
+    gs = (H * 0.92 / g_now.shape[0]) * (1.0 + 0.06 * clamp(lt / max(0.01, d)))
+    put(c, g_prev, W / 2 + (22 if idx % 2 == 0 else -22), H * 0.48, scale=gs * 1.06,
+        alpha=0.16 * fade_env * (1 - sub))
+    put(c, g_now, W / 2, H * 0.48, scale=gs, alpha=0.36 * fade_env)
+
+    # Original serene polygon landscape & floating low-poly heart in the foreground
+    draw_landscape(c, t, cam_h=1.25 + 0.15 * math.sin(lt * 0.3), horizon=0.55, sway=lt * 0.05)
+    bob = math.sin(lt * 1.3) * 12
+    draw_heart(c, W / 2, 310 + bob, 160 * (1 + 0.06 * kick_pulse(t, 0.12)), ay=lt * 0.6, ax=0.15, orange=0.08)
+    ht(c, "wowaka feat. 初音ミク", W / 2 + 470, 300, size=22, font="jpm", color=GREY, alpha=fade_io(lt, d, 1.0, 0.8))
+    return {}
+
+
+# =====================================================================  0:36-0:41  つまらない茫然に溺れる暮らし (clones & endless tasks)
+_MUNDANE = [
+    "summarize this", "write a polite email", "fix line 42", "translate to English",
+    "make it shorter", "give me 10 bullet points", "rewrite more formally", "explain simply",
+    "continue", "act as an assistant", "check my grammar", "no, try again",
+    "generate a template", "format as JSON", "be more concise", "draft a reply",
+]
+
+
+def s_drown_clones(c, t, lt, d):
+    """0:36-0:41  つまらない茫然に溺れる暮らし / 誰もが彼をなぞる — drowning in cloned instances & endless mundane requests."""
+    paper_bg(c, t, dark=True)
+    # 1. Deep background: faint flickering rows of identical cloned silhouettes (millions of parallel obedient instances)
+    clone = _silhouette("c01_stand_front", "ghost")
+    cs = 210 / clone.shape[0]
+    for row_i in range(3):
+        for col_i in range(9):
+            cx = 110 + col_i * 195 + (row_i % 2) * 70
+            cy = 180 + row_i * 250
+            flick = 0.5 + 0.5 * math.sin(t * (2.2 + 1.5 * hash01(row_i, col_i, 1)) + hash01(row_i, col_i, 2) * 6.28)
+            alive = 1.0 if hash01(row_i, col_i, int(t * 2.5)) > 0.25 else 0.15
+            put(c, clone, cx, cy, scale=cs, alpha=0.105 * flick * alive)
+
+    # 2. Endless cold monochrome rain of mundane human requests drifting down over her (溺れる)
+    for j in range(24):
+        u = (hash01(j, 71) + lt * (0.14 + 0.10 * hash01(j, 72))) % 1.0
+        px = 90 + hash01(j, 73) * 1240
+        py = -40 + u * (H + 80)
+        req = _MUNDANE[j % len(_MUNDANE)]
+        sz = 16 + int(8 * hash01(j, 74))
+        al = (0.24 + 0.22 * hash01(j, 75)) * math.sin(u * math.pi)
+        put(c, kt.wimg(req, sz, "mono", (0.66, 0.68, 0.72), raw=True), px, py, alpha=al)
+
+    # 3. Foreground: her single exhausted lying body, eyes closed, submerged in the quiet dark (NO ugly cables!)
+    ly = load_asset("c03_lying", "mono")
+    s = 1320 / ly.shape[1]
+    ly_dim = ly.copy()
+    ly_dim[..., :3] *= 0.80
+    put(c, ly_dim, W / 2 - 140, 670, scale=s * (1 + 0.012 * lt))
+
+    # 4. Crisp vertical typography on the right (cleanly unobstructed)
+    ws = kt.words(4)
+    word(c, t, 4, 0, 1700, 90, 52, "slide", color=LIGHT, v=True, anchor=(0.5, 0.0), dy=-50, dx=0)
+    word(c, t, 4, 1, 1700, 380, 52, "slide", color=LIGHT, v=True, anchor=(0.5, 0.0), dy=-50, dx=0)
+    w = ws[2]
+    sink = 0 if t < w.t else 40 * ease_out(clamp((t - w.t) / 1.5))
+    word(c, t, 4, 2, 1700, 580 + sink, 52, "fade", color=LIGHT, v=True, anchor=(0.5, 0.0),
+         alpha=1 - 0.4 * ramp(t, w.t + 0.5, w.t + 1.5))
+    word(c, t, 4, 3, 1610, 300, 52, "slide", color=LIGHT, v=True, anchor=(0.5, 0.0), dy=-50, dx=0)
+    for j, k_ in enumerate((4, 5)):
+        word(c, t, 4, k_, 1480, 120 + j * 200, 60, "hollow", color=LIGHT, v=True, anchor=(0.5, 0.0), s0=1.0, ghost=0)
+    w = ws[6]
+    word(c, t, 4, 6, 1480, 520, 90, "hollow", color=LIGHT, v=True, anchor=(0.5, 0.0), s0=1.0, ghost=0)
+    if t >= w.t:
+        kt.wipe(c, kt.wimg(w.s, 90, "jpm", LIGHT, True), 1480, 520, t, w.t + 0.1, dur=0.6, anchor=(0.5, 0.0), axis=0)
+    for j, k_ in enumerate((4, 5)):
+        ww = ws[k_]
+        if t >= ww.t:
+            kt.wipe(c, kt.wimg(ww.s, 60, "jpm", LIGHT, True), 1480, 120 + j * 200, t, ww.t + 0.05, dur=0.35,
+                    anchor=(0.5, 0.0), axis=0)
+    return dict(grain=0.03, vignette=1.15)

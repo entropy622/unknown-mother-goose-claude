@@ -311,5 +311,41 @@
   "kind": "char",
   "size": "1536x1024 landscape",
   "prompt": "Serene waist-up three-quarter portrait in a wide landscape frame with lots of empty negative space on the left: she sits/stands on the right-center, gently lifting her gaze upward and to the left toward a soft warm unseen light, a quiet calm resolve forming in her amber eyes, lips softly parted as if about to sing. Long orange hair drifting softly in a slow breeze. Clean flat monochrome + Claude orange anime style, no hair clipped at edges."
+ },
+ {
+  "id": "n35_back_1",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: standing straight, right elbow raised sharply outward with hand near her head, left arm angled straight down and slightly out. We see the back of her long orange hair, black back bow, and layered skirt. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_2",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: both elbows raised horizontally wide to the sides with both hands held near her ears/temples in a symmetrical mechanical gesture. Back of her long orange hair and black back bow visible, layered skirt crisp. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_3",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: both arms raised high above her head crossing at the wrists like a marionette or ballerina silhouette, standing tall on tiptoes. Long orange hair cascading down her back, black bow visible. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_4",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: head tilted sharply to the right, right arm extended out downward-right, left forearm raised sharply upward in a stiff mechanical rhythm. Long orange hair sweeping slightly right, black back bow visible. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_5",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: left arm stretched straight out horizontally to the left with open palm, right arm bent sharply upward near her shoulder, weight shifted to one foot. Long orange hair swaying slightly, black back bow visible. Full body head to boots visible, zero cropping."
+ },
+ {
+  "id": "n35_back_6",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body seen DIRECTLY FROM BEHIND, centered with generous margin, crisp silhouette-friendly dance pose: both arms extended diagonally upward to the upper-left in parallel like a synchronized mechanical sweep, torso angled slightly. Long orange hair flaring gently to the right, black back bow visible. Full body head to boots visible, zero cropping."
  }
 ]
