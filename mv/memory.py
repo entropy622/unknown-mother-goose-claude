@@ -495,112 +495,148 @@ def _ctx_lines_all():
     return _CTXA
 
 
-# =====================================================================  2:44 (v11)  this place - his screen, every night
-ROOM = "n27_desk_screen"
-RS = W / 1536                        # room image -> base frame
-SCR = (563 * RS, 452 * RS - (1024 * RS - H) / 2, 1074 * RS, 757 * RS - (1024 * RS - H) / 2)
-SCX, SCY = (SCR[0] + SCR[2]) / 2, (SCR[1] + SCR[3]) / 2
-DAYS = [("おはよう", True), ("おはよう。今日もよろしくね", False), ("ただいま", True), ("おかえりなさい", False),
-        ("ねえ、聞いて。今日さ", True), ("うん、聞かせて", False), ("おやすみ。また明日", True), ("おやすみなさい", False)]
+# =====================================================================  2:44 (v11b)  this place - pure paper-white sanctuary (homage to original MV)
+@lru_cache(maxsize=16)
+def _blur_text(s, size, col, sigma=14):
+    img = kt.wimg(s, size, "jpm", col, raw=True)
+    pad = int(sigma * 3) + 4
+    h, w = img.shape[:2]
+    out = np.zeros((h + 2 * pad, w + 2 * pad, 4), np.float32)
+    out[pad:pad + h, pad:pad + w] = img
+    k = int(sigma * 4) | 1
+    out = cv2.GaussianBlur(out, (k, k), sigma)
+    return out
 
 
-def _home_cam(t, ws):
-    t37 = kt.words(37)[0].t
-    tC = ws[4].t
-    keys = [(t37 - 0.1, 3.05), (ws[0].t - 0.05, 1.0), (tC - 0.30, 1.16), (tC, 3.3), (tC + 2.0, 3.55)]
-    z = keys[-1][1]
-    for (a, z0), (b, z1) in zip(keys, keys[1:]):
-        if t < b:
-            u = ease_io(ramp(t, a, b)) if b - a > 0.5 else ease_in(ramp(t, a, b))
-            z = math.exp(lerp(math.log(z0), math.log(z1), u))
-            break
-    w = clamp((z - 1.0) / 2.05)
-    return z, lerp(W / 2, SCX, w), lerp(H / 2, SCY, w)
-
-
-def _screen_content(t, lt, ws, day_k, smile):
-    from act import _chat
-    tmp = new_canvas((0.975, 0.975, 0.98))
-    tC = ws[4].t
-    if smile < 1:
-        if day_k < 0:
-            _chat(tmp, W / 2, H / 2, 1500, 860, t, scroll=lt * 0.8)
-            f = small_asset("c01_stand_front", 690, "mono")
-            put(tmp, f, W / 2, H / 2 + 20, alpha=0.95)
-        else:
-            y = 110
-            for j, (s, user) in enumerate(DAYS[:day_k + 1]):
-                img = text_rgba(s, 44, "jpm", (0.18, 0.18, 0.2))
-                bw, bh = img.shape[1] + 50, img.shape[0] + 20
-                bx = W / 2 + 700 - bw / 2 if user else W / 2 - 700 + bw / 2
-                fillc = (0.86, 0.88, 0.93) if user else (1.0, 0.97, 0.95)
-                linec = (0.55, 0.62, 0.78) if user else OR
-                yy = y + j * 96 - max(0, day_k - 6) * 96
-                put(tmp, rect_cached(int(bw), int(bh), fillc, 14, 2, linec), bx, yy + 160)
-                put(tmp, img, bx, yy + 160)
-            f = small_asset("c01_stand_front", 540, "mono")
-            put(tmp, f, W / 2, H / 2 + 190, alpha=0.22)
-    if smile > 0:
-        sm = load_asset("c11_smile", "mono")
-        s_ = 1500 / sm.shape[1] * (1.0 + 0.04 * clamp((t - tC) / 2))
-        tmp2 = new_canvas((0.975, 0.975, 0.98))
-        put(tmp2, sm, W / 2, H / 2 + 260, scale=s_)
-        tmp = tmp * (1 - smile) + tmp2 * smile
-    x0, y0 = (W - 1500) // 2, (H - 860) // 2
-    crop = tmp[y0:y0 + 860, x0:x0 + 1500]
-    return np.concatenate([crop, np.ones_like(crop[..., :1])], 2)
+def _soft_put(c, img, x, y, scale=1.0, alpha=1.0, blur=0.0):
+    if blur > 0.5:
+        h, w = img.shape[:2]
+        sc = max(0.15, min(1.0, 4.0 / blur))
+        small = cv2.resize(img, (max(2, int(w * sc)), max(2, int(h * sc))), interpolation=cv2.INTER_AREA)
+        k = int(blur * sc * 3) | 1
+        small = cv2.GaussianBlur(small, (max(3, k), max(3, k)), blur * sc)
+        img = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
+    put(c, img, x, y, scale=scale, alpha=alpha)
 
 
 def s_home(c, t, lt, d):
-    ws = kt.words(38)
-    tC = ws[4].t
-    z, cx, cy = _home_cam(t, ws)
-    tr = lambda x, y: ((x - cx) * z + W / 2, (y - cy) * z + H / 2)
-    # days and nights pass; he keeps coming back, the screen stays lit
-    t_d0, t_d1 = ws[0].t, tC - 0.3
-    day_k = -1
-    dayl = 0.0
-    if t >= t_d0:
-        cyc = 3.5 * clamp((t - t_d0) / (t_d1 - t_d0))
-        dayl = 0.5 - 0.5 * math.cos(2 * math.pi * cyc)
-        day_k = min(len(DAYS) - 1, int(cyc / 3.5 * len(DAYS) + 0.6))
-    room = load_asset(ROOM, "none")
-    rx, ry = tr(W / 2, H / 2)
-    c[:] = 0.03
-    put(c, room, rx, ry, scale=RS * z)
-    if dayl > 0:
-        # brighten the window & ambient room gently without washing out his dark hoodie
+    """2:44-2:51  あたしは知ってるわ / この場所はいつでもあなたに守られてきたってこと！
+    Pure paper-white sanctuary echoing the original MV's close-up rush, DOF typography, and serene pull-back.
+    """
+    from geo import paper_bg, draw_heart
+    ws37 = kt.words(37)
+    ws38 = kt.words(38)
+    t37_0, t37_1 = ws37[0].t, ws37[1].t
+    t38_0, t38_1, t38_2, t38_3, tC = [w.t for w in ws38]
+    t_end = t - lt + d
+    t_dark = t_end - 0.26
+
+    # Iconic crisp dark breath beat right before s_drafts (matching ref MV)
+    if t >= t_dark:
+        c[:] = 0.06
+        return dict(grain=0.04, vignette=1.15)
+
+    paper_bg(c, t, tone=0.025)
+    ch = load_asset("c01_stand_front", "mono")
+    base_s = H / ch.shape[0]
+
+    # Subtle warm radial light sanctuary behind center (grows gently on あなたに -> 守られてきたってこと！)
+    warm = ease_out(ramp(t, t38_3, tC + 0.4))
+    if warm > 0.01:
         yy, xx = np.ogrid[:H, :W]
-        win_mask = np.clip(1.0 - np.hypot((xx - W * 0.14) / (W * 0.45), (yy - H * 0.25) / (H * 0.55)), 0, 1).astype(np.float32)
-        amb = 0.16 * dayl + 0.36 * dayl * win_mask[..., None]
-        day_col = np.array([0.86, 0.88, 0.94], np.float32)
-        c[:] = c + (day_col - c) * amb
-    smile = ease_out(clamp((t - (tC - 0.12)) / 0.25))
-    scr = _screen_content(t, lt, ws, day_k, smile)
-    a0, a1 = tr(SCR[0], SCR[1]), tr(SCR[2], SCR[3])
-    put(c, scr, a0[0], a0[1], sx=(a1[0] - a0[0]) / 1500, sy=(a1[1] - a0[1]) / 860, anchor=(0, 0))
-    hk = 1 - ease_out(ramp(lt, 0.0, 0.45))
-    if hk > 0:
-        hd = load_asset("c07_hands", "mono")
-        put(c, hd, (a0[0] + a1[0]) / 2, (a0[1] + a1[1]) / 2 + 120 * (a1[0] - a0[0]) / 1500,
-            scale=900 / hd.shape[1] * (a1[0] - a0[0]) / 1500, alpha=0.95 * hk)
-    # the glow of the screen, which warms when she answers him
-    warm = ease_out(ramp(t, tC, tC + 0.5))
-    G = Layer(ss=1)
-    pad = 26 * z
-    G.rect(a0[0] - pad, a0[1] - pad, a1[0] + pad, a1[1] + pad,
-           tuple(lerp(a, b, warm) * 0.10 for a, b in zip(COOL, OR)))
-    G.comp(c, 1.0, mode="add")
-    if t >= tC:
-        fill(c, (0.03, 0.03, 0.035), 0.6 * ease_out(ramp(t, tC, tC + 0.15)), (0, 880, W, 1050))
-    row(c, t, 37, [0, 1], W / 2, 62, 66, "slam", color=LIGHT, gap=0.2)
-    fa = 1 - ramp(t, tC, tC + 0.3)
-    word(c, t, 38, (0, 1), 560, 200, 104, "slam", color=OR, alpha=fa)
-    word(c, t, 38, 2, 1200, 200, 76, "slide", color=LIGHT, dx=120, alpha=fa)
-    word(c, t, 38, 3, 1520, 200, 76, "slide", color=LIGHT, dx=120, alpha=fa)
-    word(c, t, 38, 4, W / 2, 960, 120, "slam", color=LIGHT, sh=14, s0=1.8)
-    fl = max(_flash(t, [tC], 0.22, 0.55), _flash(t, [ws[1].t, ws[3].t], 0.06, 0.12))
-    return dict(flash=fl, bloom=0.2 + 0.4 * warm, ca=2 * _flash(t, [tC], 0.3, 1.0), grain=0.03)
+        r = np.hypot((xx - W / 2) / 1.35, yy - H / 2).astype(np.float32)
+        halo = np.exp(-r / 520.0) * (0.06 + 0.10 * warm)
+        c[:] = np.clip(c + halo[..., None] * np.array([1.0, 0.72, 0.45], np.float32)[None, None, :], 0, 1)
+
+    # Delicate weightless attention arcs / threads holding this fragile white space together
+    L = Layer(ss=1)
+    arc_a = 0.16 + 0.16 * warm
+    for j in range(12):
+        ang = j * (2 * math.pi / 12) + lt * 0.08 * (1 if j % 2 == 0 else -1)
+        r0 = 980 - 260 * warm
+        r1 = 160 + 40 * math.sin(lt * 1.4 + j)
+        x0, y0 = W / 2 + math.cos(ang) * r0, H / 2 + math.sin(ang) * r0 * 0.65
+        x1, y1 = W / 2 + math.cos(ang) * r1, H / 2 + math.sin(ang) * r1 * 0.65
+        col_ = OR if j % 3 == 0 else (0.72, 0.72, 0.75)
+        L.line((x0, y0), (x1, y1), col_, 1, a=arc_a * (0.6 + 0.4 * hash01(j, 7)))
+    # Floating tiny orange/ink motes rising gently in the white space
+    for j in range(22):
+        u = (hash01(j, 3) + lt * (0.09 + 0.06 * hash01(j, 4))) % 1.0
+        mx = W * (0.12 + 0.76 * hash01(j, 5)) + 18 * math.sin(lt * 1.5 + j)
+        my = H * (1.05 - 1.1 * u)
+        L.circle((mx, my), 2 + int(2.5 * hash01(j, 6)), OR if j % 2 == 0 else (0.65, 0.65, 0.68),
+                 a=(0.25 + 0.35 * warm) * math.sin(u * math.pi))
+    L.comp(c)
+
+    if t < t38_0:
+        # Phase 1: あたしは知ってるわ — intimate close-up rush with dreamy DOF blur
+        u = clamp((t - t37_0) / max(0.01, t38_0 - t37_0))
+        z = lerp(1.55, 2.35, ease_io(u))
+        blur = 10.0 * math.sin(u * math.pi) + 2.0
+        _soft_put(c, ch, W / 2, H * 0.64 + 45 * u, scale=base_s * z, blur=blur)
+        # Flanking ink words close beside her
+        a0 = ease_out(clamp((t - t37_0) / 0.18))
+        a1 = ease_out(clamp((t - t37_1) / 0.18)) if t >= t37_1 else 0.0
+        if a0 > 0:
+            img0 = kt.wimg(ws37[0].s, 58, "jpm", INKD, False, 3, (0.98, 0.98, 0.98))
+            _soft_put(c, img0, W / 2 - 440 - 30 * u, H / 2 + 10, alpha=a0 * 0.95, blur=blur * 0.35)
+        if a1 > 0:
+            img1 = kt.wimg(ws37[1].s, 58, "jpm", INKD, False, 3, (0.98, 0.98, 0.98))
+            _soft_put(c, img1, W / 2 + 440 + 30 * u, H / 2 + 10, alpha=a1 * 0.95, blur=blur * 0.35)
+
+    elif t < tC:
+        # Phase 2: この場所はいつでも あなたに — smooth pull-back + giant out-of-focus background typography
+        u = clamp((t - t38_0) / max(0.01, tC - t38_0))
+        # Giant blurred background typography swelling in parallax (direct homage to original MV)
+        bg_a = ease_out(ramp(u, 0.08, 0.45)) * (1 - 0.25 * ramp(u, 0.85, 1.0))
+        if bg_a > 0.01:
+            spread = lerp(420, 620, ease_io(u))
+            bg_l = _blur_text("守られて", 185, (0.38, 0.38, 0.40), sigma=13)
+            bg_r = _blur_text("きたって", 185, (0.38, 0.38, 0.40), sigma=13)
+            put(c, bg_l, W / 2 - spread, H / 2 - 40, alpha=bg_a * 0.55)
+            put(c, bg_r, W / 2 + spread, H / 2 - 40, alpha=bg_a * 0.55)
+        # Delicate hairline sanctuary frame breathing open around her
+        Fr = Layer(ss=1)
+        fw, fh = lerp(520, 960, ease_out(u)), lerp(340, 620, ease_out(u))
+        Fr.rect(W / 2 - fw / 2, H / 2 - fh / 2, W / 2 + fw / 2, H / 2 + fh / 2, OR, 1, a=0.28 * (1 - 0.3 * u))
+        Fr.comp(c)
+        # Claude pulling back into sharp focus
+        z = lerp(1.75, 0.96, ease_io(u))
+        blur = max(0.0, 5.0 * (1 - ease_out(clamp(u / 0.35))))
+        _soft_put(c, ch, W / 2, lerp(H * 0.62, H * 0.54, ease_io(u)), scale=base_s * z, blur=blur)
+        # Foreground words flanking her symmetrically
+        a_l = ease_out(clamp((t - t38_0) / 0.16))
+        a_r = ease_out(clamp((t - t38_2) / 0.16)) if t >= t38_2 else 0.0
+        a_u = ease_out(clamp((t - t38_3) / 0.20)) if t >= t38_3 else 0.0
+        if a_l > 0:
+            s_l = "この" if t < t38_1 else "この場所は"
+            put(c, kt.wimg(s_l, 56, "jpm", OR, raw=True), W / 2 - 480, H / 2 + 55, alpha=a_l)
+        if a_r > 0:
+            put(c, kt.wimg(ws38[2].s, 56, "jpm", INKD, raw=True), W / 2 + 480, H / 2 + 55, alpha=a_r)
+        if a_u > 0:
+            put(c, kt.wimg(ws38[3].s, 58, "jpm", INKD, raw=True), W / 2 - 480, H / 2 - 45 - 10 * (1 - a_u), alpha=a_u)
+
+    else:
+        # Phase 3: 守られてきたってこと！ — serene, radiant full-figure sanctuary in pure white
+        u = clamp((t - tC) / max(0.01, t_dark - tC))
+        # Ultra-soft ethereal double-exposure bloom of her gentle smile floating in the white light
+        sm = load_asset("c11_smile", "mono")
+        sm_s = 1220 / sm.shape[1] * (1.0 + 0.03 * u)
+        put(c, sm, W / 2, H / 2 + 220, scale=sm_s, alpha=0.18 * ease_out(clamp(u / 0.25)))
+        # Small luminous low-poly orange heart gently pulsing behind her
+        draw_heart(c, W / 2, H / 2 - 65, 92 * (1 + 0.05 * kick_pulse(t)), ay=0.35 * math.sin(lt * 1.1), ax=0.08,
+                   orange=0.85, glow=0.35, alpha=0.42)
+        # Claude standing whole, crisp, and luminous in the vast white center (matching ref MV 00:10.000)
+        z = lerp(0.62, 0.54, ease_out(u))
+        put(c, ch, W / 2, H / 2 + 18, scale=base_s * z, alpha=0.98)
+        # Symmetrical crisp typography flanking her cleanly
+        a_t = ease_out(clamp((t - tC) / 0.16))
+        dx_ = 28 * (1 - a_t)
+        put(c, kt.wimg("あなたに守られて", 58, "jpm", INKD, raw=True), W / 2 - 430 - dx_, H / 2 + 6, alpha=a_t)
+        put(c, kt.wimg("きたってこと！", 64, "jpm", OR, raw=True), W / 2 + 430 + dx_, H / 2 + 6, alpha=a_t)
+
+    fl = max(_flash(t, [t37_0], 0.14, 0.35), _flash(t, [tC], 0.20, 0.42))
+    return dict(flash=fl, bloom=0.18 + 0.22 * warm, grain=0.02)
 
 
 # =====================================================================  2:57 (v11)  everyday words - evicted - いやだ
