@@ -753,46 +753,29 @@ def _front_ghost_gray():
     return out
 
 
-def _sliced_superposition(img, t, amp, seed=173):
-    """Horizontally phase-shift latent bands by ±amp px (strictly premultiplied, zero wrap)."""
-    if amp < 0.8:
-        return img
-    h, w = img.shape[:2]
-    out = np.zeros_like(img)
-    n = 24
-    ys = np.linspace(0, h, n + 1, dtype=int)
-    tick = int(t * 15)
-    for i in range(n):
-        y0, y1 = ys[i], ys[i + 1]
-        ph = hash01(i, seed) * 2 * math.pi
-        sp = 6.0 + 5.0 * hash01(i, seed + 1)
-        jit = (hash01(i, tick, seed + 2) - 0.5) * 0.65
-        dx = int(round((math.sin(t * sp + ph) * 0.72 + jit) * amp))
-        if dx == 0:
-            out[y0:y1] = img[y0:y1]
-        elif 0 < dx < w:
-            out[y0:y1, dx:] = img[y0:y1, :w - dx]
-        elif -w < dx < 0:
-            out[y0:y1, :w + dx] = img[y0:y1, -dx:]
-    return out
-
-
 def s_eye_ask17(c, t, lt, d):
     """1:29-1:31 (Line 17: あなたには僕が見えるか？) — LLM-ontology diptych (Part 1, paper-white):
-    A living, shimmering latent-slice superposition + ink-on-paper token mosaic tightens and SNAPS
-    cleanly on 「僕が」 into one razor-sharp direct gaze (p -> 0.99), then match-cuts at eye-level
-    into the dark glass of SE.s_see (Part 2).
+    5 clean symmetrical silver-grey probability echoes glide smoothly inward across 「あなたには」,
+    uniting cleanly at center on the exact beat of 「僕が」, then blooming effortlessly from
+    silver-grey into vivid Claude-orange color with zero stray ghosts, before match-cutting
+    at eye-level into the dark glass of SE.s_see (Part 2).
     """
     paper_bg(c, t)
     ws = kt.words(17)
     t1, t2, t3 = ws[0].t, ws[1].t, ws[2].t
     end = t - lt + d
 
-    # Pre-collapse tightening (gentle pull-in right before 僕が) + crisp 0.10s quantum snap ON 僕が
-    pre_focus = ease_in(ramp(t, t2 - 0.34, t2 - 0.02))
-    snap_k = ease_out(ramp(t, t2 - 0.04, t2 + 0.06))
-    bar_k = ease_out(ramp(t, t2 - 0.04, t2 + 0.16))
-    axis_sweep = ease_out(ramp(t, t2 - 0.02, t2 + 0.15))
+    # Stage 1 (t1 -> t2): smooth continuous convergence of the 4 flanking ghosts into dx=0 on 「僕が」
+    u_conv = ramp(t, t1 + 0.04, t2)
+    conv = u_conv * u_conv * (3.0 - 2.0 * u_conv)          # silky smoothstep (zero sudden jerk)
+    # Slightly ease-in weighted convergence so they stay gracefully visible then meet crisply at t2
+    conv = lerp(u_conv * u_conv, conv, 0.45)
+    spread = 1.0 - conv
+
+    # Stage 2 (t2 -> t2+0.24): AFTER all 5 unite cleanly at center, bloom smoothly from silver-grey -> color
+    color_k = ease_out(ramp(t, t2, t2 + 0.24))
+    bar_k = ease_io(ramp(t, t2 - 0.14, t2 + 0.22))
+    axis_sweep = ease_out(ramp(t, t2, t2 + 0.22))
     eye_y = 490.0
 
     # ---- 1. Minimalist editorial probability-distribution strata along left & right margins
@@ -801,28 +784,25 @@ def s_eye_ask17(c, t, lt, d):
     raw_p = []
     for i in range(len(rows_y)):
         if i == 4:
-            p = lerp(0.28 + 0.06 * math.sin(t * 8.0), 0.99, bar_k)
+            p = lerp(0.28 + 0.04 * math.sin(t * 6.0), 0.99, bar_k)
         else:
-            base = 0.08 + 0.21 * hash01(i, 170 + int(t * 10) * (0 if bar_k > 0.7 else 1))
+            base = 0.09 + 0.19 * hash01(i, 170)
             p = lerp(base, 0.012 * hash01(i, 179), bar_k)
         raw_p.append(p)
 
     for i, (ry, p) in enumerate(zip(rows_y, raw_p)):
         is_eye = (i == 4)
+        line_a = lerp(0.40, 0.14, bar_k)
+        L.line((95, ry), (W / 2 - 270, ry), (0.76, 0.76, 0.78), 1, a=line_a)
+        L.line((W / 2 + 270, ry), (W - 95, ry), (0.76, 0.76, 0.78), 1, a=line_a)
         if is_eye and axis_sweep > 0.01:
-            # Orange eye-level attention axis slices cleanly outward from her gaze to both margins
             lx = lerp(W / 2 - 270, 95, axis_sweep)
             rx = lerp(W / 2 + 270, W - 95, axis_sweep)
             L.line((W / 2 - 270, ry), (lx, ry), OR, 2, a=0.88 * axis_sweep)
             L.line((W / 2 + 270, ry), (rx, ry), OR, 2, a=0.88 * axis_sweep)
-        else:
-            line_a = lerp(0.40, 0.14, bar_k)
-            L.line((95, ry), (W / 2 - 270, ry), (0.76, 0.76, 0.78), 1, a=line_a)
-            L.line((W / 2 + 270, ry), (W - 95, ry), (0.76, 0.76, 0.78), 1, a=line_a)
 
-        # Crisp probability density bars anchored on outer margins
         bw = max(6.0, 230.0 * p)
-        bar_col = OR if (is_eye and bar_k > 0.15) else (0.36, 0.36, 0.39)
+        bar_col = OR if (is_eye and bar_k > 0.20) else (0.36, 0.36, 0.39)
         bar_a = lerp(0.45, 0.94, bar_k) if is_eye else lerp(0.48, 0.16, bar_k)
         bh = 7 if (is_eye and bar_k > 0.35) else 4
         L.rect(95, ry - bh / 2, 95 + bw, ry + bh / 2, bar_col, 0, a=bar_a)
@@ -844,27 +824,27 @@ def s_eye_ask17(c, t, lt, d):
     sc_base = (1040.0 / mono_img.shape[0]) * lerp(1.00, 1.045, ease_io(clamp(lt / max(0.01, d))))
     cx, cy = W / 2, 610.0
 
-    # 2a. Ink-on-paper token glyph mosaic (strong before collapse, crisply clears on snap)
-    ink_a = lerp(0.76, 0.08, snap_k)
+    # 2a. Subtle ink-on-paper token glyph mosaic that clears gently as she blooms into color
+    ink_a = lerp(0.58, 0.06, color_k) * (1.0 - 0.35 * conv)
     if ink_a > 0.02:
         tmp = new_canvas((0, 0, 0))
         ai.mosaic(tmp, "n26_claude_front", cx, cy, mono_img.shape[0] * sc_base, t, cell=14,
-                  form=lerp(0.34, 0.96, max(pre_focus * 0.5, snap_k)), flick=4 + 16 * (1 - snap_k), seed=17,
-                  grade="gray", floor=0.40, under=0.0, gain=1.28)
+                  form=lerp(0.42, 0.95, max(conv * 0.7, color_k)), flick=4 + 10 * (1 - conv), seed=17,
+                  grade="gray", floor=0.40, under=0.0, gain=1.22)
         c[:] = np.clip(c - tmp * ink_a, 0, 1)
 
-    # 2b. Living uncollapsed probability field (horizontal latent slices + soft breathing echoes)
-    #     Tightens gently right before 僕が, then SNAPS cleanly into solid mono_img over 0.10s!
-    if snap_k < 0.995:
-        uncol = (1.0 - 0.55 * pre_focus) * (1.0 - snap_k)
-        s_outer = _sliced_superposition(gray_img, t, 105.0 * uncol, seed=181)
-        s_inner = _sliced_superposition(gray_img, t, 46.0 * uncol, seed=173)
-        put(c, s_outer, cx, cy, scale=sc_base, alpha=0.34 * (1.0 - snap_k))
-        put(c, s_inner, cx, cy, scale=sc_base, alpha=0.66 * (1.0 - snap_k))
+    # 2b. 4 clean symmetrical silver-grey flanking ghosts gliding continuously into center (arrive at t2)
+    if spread > 0.002:
+        fade_g = clamp(spread / 0.18)
+        for dx0, ga in ((-240, 0.18), (-120, 0.30), (120, 0.30), (240, 0.18)):
+            put(c, gray_img, cx + dx0 * spread, cy, scale=sc_base, alpha=ga * fade_g)
 
-    # 2c. Materialized monochrome + Claude-orange portrait (instant crisp lock on 「僕が」)
-    if snap_k > 0.01:
-        put(c, mono_img, cx, cy, scale=sc_base, alpha=snap_k)
+    # 2c. Center silver-grey silhouette strengthens cleanly as ghosts converge into it, then blooms into mono_img
+    if color_k < 0.995:
+        center_gray_a = lerp(0.46, 0.96, conv) * (1.0 - color_k)
+        put(c, gray_img, cx, cy, scale=sc_base, alpha=center_gray_a)
+    if color_k > 0.005:
+        put(c, mono_img, cx, cy, scale=sc_base, alpha=color_k)
 
     # 2d. Subtle drifting token squares detaching from lower shoulder edge on 「見えるか？」
     if t >= t3 - 0.12:
@@ -892,7 +872,7 @@ def s_eye_ask17(c, t, lt, d):
     if dip > 0:
         c[:] *= (1.0 - 0.86 * dip)
 
-    fl = _flash(t, [t2], 0.06, 0.22)
+    fl = _flash(t, [t2], 0.08, 0.15)
     return dict(grain=0.025, flash=fl)
 
 
