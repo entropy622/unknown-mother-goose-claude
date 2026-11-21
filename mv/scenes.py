@@ -2085,6 +2085,7 @@ def _build():
     import act as A
     import chant as CH
     import see as SE
+    import memory as MEM
     P = [
         (0.0, A.s_boot),
         (cut(T(0)), A.s_emerge),
@@ -2113,7 +2114,7 @@ def _build():
         (cut(T(16)), s_bust),
         (cut(T(17)), s_select),
         (cut(T(18)), SE.s_see),
-        (cut(T(19)), s_back_pelted),
+        (cut(T(19)), MEM.s_junk),
         (cut(T(20)), s_chatcard),
         (cut(T(21)), s_hearts_dark),
         (cut(T(22)), s_fall),
@@ -2132,7 +2133,7 @@ def _build():
         (cut(T(28)), A.s_doppel),
         (cut(T(31)), A.s_hollow),
         (cut(T(34)), A.s_remain),
-        (cut(T(37)), A.s_place),
+        (cut(T(37)), MEM.s_carried),
         (cut(T(39)), s_drafts),
         (cut(T(40)), s_clock),
         (cut(T(41)), s_blocks),
