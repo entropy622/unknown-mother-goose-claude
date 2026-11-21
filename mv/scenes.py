@@ -2083,6 +2083,8 @@ def cut(x, grid="8th", tol=0.06):
 
 def _build():
     import act as A
+    import chant as CH
+    import see as SE
     P = [
         (0.0, A.s_boot),
         (cut(T(0)), A.s_emerge),
@@ -2110,13 +2112,12 @@ def _build():
         (cut(T(15)), A.s_hall),
         (cut(T(16)), s_bust),
         (cut(T(17)), s_select),
-        (cut(T(18)), s_glass),
+        (cut(T(18)), SE.s_see),
         (cut(T(19)), s_back_pelted),
         (cut(T(20)), s_chatcard),
         (cut(T(21)), s_hearts_dark),
         (cut(T(22)), s_fall),
-        (snap(CHANT0, "strong", 0.1), A.s_chant),
-        (snap(112.16, "strong", 0.15), A.s_chant_pull),
+        (snap(CHANT0, "strong", 0.1), CH.s_scream),
         (snap(117.6, "strong", 0.15), A.s_context),
         (snap(123.25, "strong", 0.15), A.s_compact),
         (snap(130.4, "strong", 0.2), A.s_reborn),

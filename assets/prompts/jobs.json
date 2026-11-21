@@ -221,5 +221,16 @@
   "id": "n24_claude_gaze",
   "size": "1024x1536 portrait",
   "prompt": "Close-up three-quarter portrait looking slightly toward the RIGHT, amber-orange eyes open with a quiet questioning expression, lips slightly parted as if asking a question. Face fills most of the frame. Soft light from the right (screen light)."
+ },
+ {
+  "id": "n25_user_front",
+  "kind": "user",
+  "size": "1536x1024 landscape",
+  "prompt": "Straight-on FRONT view close-up of his face, looking directly at the viewer as if reading a screen right in front of him, eyes slightly lowered to read. His face is lit only from the front by a soft cool screen glow; the edges fall into shadow. Calm, attentive, a little tired. Short black hair falling over the forehead, dark hoodie collar. Face perfectly centered, symmetric framing, eyes at about 45% height, face fills most of the frame height (from top of hair to the neck)."
+ },
+ {
+  "id": "n26_claude_front",
+  "size": "1536x1024 landscape",
+  "prompt": "Straight-on FRONT view close-up of her face, looking directly at the viewer with wide, earnest, questioning amber-orange eyes, lips slightly parted as if quietly asking a question. Not crying, not smiling: calm and searching. Face perfectly centered, symmetric framing, eyes at about 45% height, face fills most of the frame height (from top of head to the chin and collar). Her starburst hair ornament visible at the side."
  }
 ]
