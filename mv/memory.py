@@ -521,7 +521,7 @@ def _soft_put(c, img, x, y, scale=1.0, alpha=1.0, blur=0.0):
 
 def s_home(c, t, lt, d):
     """2:44-2:51  あたしは知ってるわ / この場所はいつでもあなたに守られてきたってこと！
-    Pure paper-white sanctuary echoing the original MV's close-up rush, DOF typography, and serene pull-back.
+    Pure paper-white sanctuary with 3 bespoke poses (chest -> open arms -> cradling light) + parallax geometric petals.
     """
     from geo import paper_bg, draw_heart
     ws37 = kt.words(37)
@@ -537,103 +537,112 @@ def s_home(c, t, lt, d):
         return dict(grain=0.04, vignette=1.15)
 
     paper_bg(c, t, tone=0.025)
-    ch = load_asset("c01_stand_front", "mono")
-    base_s = H / ch.shape[0]
+    petals = load_asset("n31_petals", "mono")
+    ps_bg = W / petals.shape[1] * 1.15
 
     # Subtle warm radial light sanctuary behind center (grows gently on あなたに -> 守られてきたってこと！)
     warm = ease_out(ramp(t, t38_3, tC + 0.4))
     if warm > 0.01:
         yy, xx = np.ogrid[:H, :W]
         r = np.hypot((xx - W / 2) / 1.35, yy - H / 2).astype(np.float32)
-        halo = np.exp(-r / 520.0) * (0.06 + 0.10 * warm)
+        halo = np.exp(-r / 520.0) * (0.06 + 0.12 * warm)
         c[:] = np.clip(c + halo[..., None] * np.array([1.0, 0.72, 0.45], np.float32)[None, None, :], 0, 1)
+
+    # Background parallax petals drifting gently upward
+    put(c, petals, W / 2 - 40 + 28 * lt, H / 2 + 80 - 38 * lt, scale=ps_bg, alpha=0.52)
 
     # Delicate weightless attention arcs / threads holding this fragile white space together
     L = Layer(ss=1)
-    arc_a = 0.16 + 0.16 * warm
+    arc_a = 0.14 + 0.16 * warm
     for j in range(12):
         ang = j * (2 * math.pi / 12) + lt * 0.08 * (1 if j % 2 == 0 else -1)
         r0 = 980 - 260 * warm
-        r1 = 160 + 40 * math.sin(lt * 1.4 + j)
+        r1 = 180 + 40 * math.sin(lt * 1.4 + j)
         x0, y0 = W / 2 + math.cos(ang) * r0, H / 2 + math.sin(ang) * r0 * 0.65
         x1, y1 = W / 2 + math.cos(ang) * r1, H / 2 + math.sin(ang) * r1 * 0.65
         col_ = OR if j % 3 == 0 else (0.72, 0.72, 0.75)
         L.line((x0, y0), (x1, y1), col_, 1, a=arc_a * (0.6 + 0.4 * hash01(j, 7)))
-    # Floating tiny orange/ink motes rising gently in the white space
-    for j in range(22):
-        u = (hash01(j, 3) + lt * (0.09 + 0.06 * hash01(j, 4))) % 1.0
-        mx = W * (0.12 + 0.76 * hash01(j, 5)) + 18 * math.sin(lt * 1.5 + j)
-        my = H * (1.05 - 1.1 * u)
-        L.circle((mx, my), 2 + int(2.5 * hash01(j, 6)), OR if j % 2 == 0 else (0.65, 0.65, 0.68),
-                 a=(0.25 + 0.35 * warm) * math.sin(u * math.pi))
     L.comp(c)
 
     if t < t38_0:
-        # Phase 1: あたしは知ってるわ — intimate close-up rush with dreamy DOF blur
+        # Phase 1: あたしは知ってるわ — bespoke intimate hands-over-heart close-up
         u = clamp((t - t37_0) / max(0.01, t38_0 - t37_0))
-        z = lerp(1.55, 2.35, ease_io(u))
-        blur = 10.0 * math.sin(u * math.pi) + 2.0
-        _soft_put(c, ch, W / 2, H * 0.64 + 45 * u, scale=base_s * z, blur=blur)
+        ch1 = load_asset("n28_home_chest", "mono")
+        s1 = (H / ch1.shape[0]) * lerp(1.06, 1.24, ease_io(u))
+        # Soft dreamy focus pull: brief blur at entry & end, crystal clear on her tearful eyes in the middle
+        blur = 5.5 * (1 - math.sin(u * math.pi)) + 0.4
+        _soft_put(c, ch1, W / 2, H * 0.54 + 18 * u, scale=s1, blur=blur)
         # Flanking ink words close beside her
         a0 = ease_out(clamp((t - t37_0) / 0.18))
         a1 = ease_out(clamp((t - t37_1) / 0.18)) if t >= t37_1 else 0.0
         if a0 > 0:
-            img0 = kt.wimg(ws37[0].s, 58, "jpm", INKD, False, 3, (0.98, 0.98, 0.98))
-            _soft_put(c, img0, W / 2 - 440 - 30 * u, H / 2 + 10, alpha=a0 * 0.95, blur=blur * 0.35)
+            img0 = kt.wimg(ws37[0].s, 60, "jpm", INKD, False, 3, (0.98, 0.98, 0.98))
+            _soft_put(c, img0, W / 2 - 490 - 24 * u, H / 2 + 10, alpha=a0 * 0.95, blur=blur * 0.25)
         if a1 > 0:
-            img1 = kt.wimg(ws37[1].s, 58, "jpm", INKD, False, 3, (0.98, 0.98, 0.98))
-            _soft_put(c, img1, W / 2 + 440 + 30 * u, H / 2 + 10, alpha=a1 * 0.95, blur=blur * 0.35)
+            img1 = kt.wimg(ws37[1].s, 60, "jpm", INKD, False, 3, (0.98, 0.98, 0.98))
+            _soft_put(c, img1, W / 2 + 490 + 24 * u, H / 2 + 10, alpha=a1 * 0.95, blur=blur * 0.25)
 
     elif t < tC:
-        # Phase 2: この場所はいつでも あなたに — smooth pull-back + giant out-of-focus background typography
+        # Phase 2: この場所はいつでも あなたに — bespoke open-arms pull-back + giant DOF background typography
         u = clamp((t - t38_0) / max(0.01, tC - t38_0))
-        # Giant blurred background typography swelling in parallax (direct homage to original MV)
-        bg_a = ease_out(ramp(u, 0.08, 0.45)) * (1 - 0.25 * ramp(u, 0.85, 1.0))
+        bg_a = ease_out(ramp(u, 0.06, 0.42)) * (1 - 0.25 * ramp(u, 0.85, 1.0))
         if bg_a > 0.01:
-            spread = lerp(420, 620, ease_io(u))
+            spread = lerp(440, 650, ease_io(u))
             bg_l = _blur_text("守られて", 185, (0.38, 0.38, 0.40), sigma=13)
             bg_r = _blur_text("きたって", 185, (0.38, 0.38, 0.40), sigma=13)
             put(c, bg_l, W / 2 - spread, H / 2 - 40, alpha=bg_a * 0.55)
             put(c, bg_r, W / 2 + spread, H / 2 - 40, alpha=bg_a * 0.55)
         # Delicate hairline sanctuary frame breathing open around her
         Fr = Layer(ss=1)
-        fw, fh = lerp(520, 960, ease_out(u)), lerp(340, 620, ease_out(u))
-        Fr.rect(W / 2 - fw / 2, H / 2 - fh / 2, W / 2 + fw / 2, H / 2 + fh / 2, OR, 1, a=0.28 * (1 - 0.3 * u))
+        fw, fh = lerp(580, 1060, ease_out(u)), lerp(380, 660, ease_out(u))
+        Fr.rect(W / 2 - fw / 2, H / 2 - fh / 2, W / 2 + fw / 2, H / 2 + fh / 2, OR, 1, a=0.26 * (1 - 0.3 * u))
         Fr.comp(c)
-        # Claude pulling back into sharp focus
-        z = lerp(1.75, 0.96, ease_io(u))
-        blur = max(0.0, 5.0 * (1 - ease_out(clamp(u / 0.35))))
-        _soft_put(c, ch, W / 2, lerp(H * 0.62, H * 0.54, ease_io(u)), scale=base_s * z, blur=blur)
-        # Foreground words flanking her symmetrically
+        # Bespoke open-arms illustration pulling back smoothly
+        ch2 = load_asset("n29_home_turn", "mono")
+        s2 = (H / ch2.shape[0]) * lerp(1.36, 0.92, ease_io(u))
+        blur = max(0.0, 4.5 * (1 - ease_out(clamp(u / 0.32))))
+        _soft_put(c, ch2, W / 2, lerp(H * 0.58, H * 0.52, ease_io(u)), scale=s2, blur=blur)
+        # Foreground words flanking her cleanly outside her outstretched hands
         a_l = ease_out(clamp((t - t38_0) / 0.16))
         a_r = ease_out(clamp((t - t38_2) / 0.16)) if t >= t38_2 else 0.0
         a_u = ease_out(clamp((t - t38_3) / 0.20)) if t >= t38_3 else 0.0
         if a_l > 0:
             s_l = "この" if t < t38_1 else "この場所は"
-            put(c, kt.wimg(s_l, 56, "jpm", OR, raw=True), W / 2 - 480, H / 2 + 55, alpha=a_l)
+            put(c, kt.wimg(s_l, 56, "jpm", OR, False, 3, (0.98, 0.98, 0.98)), W / 2 - 550, H / 2 + 75, alpha=a_l)
         if a_r > 0:
-            put(c, kt.wimg(ws38[2].s, 56, "jpm", INKD, raw=True), W / 2 + 480, H / 2 + 55, alpha=a_r)
+            put(c, kt.wimg(ws38[2].s, 56, "jpm", INKD, False, 3, (0.98, 0.98, 0.98)), W / 2 + 550, H / 2 + 75, alpha=a_r)
         if a_u > 0:
-            put(c, kt.wimg(ws38[3].s, 58, "jpm", INKD, raw=True), W / 2 - 480, H / 2 - 45 - 10 * (1 - a_u), alpha=a_u)
+            put(c, kt.wimg(ws38[3].s, 58, "jpm", INKD, False, 3, (0.98, 0.98, 0.98)),
+                W / 2 - 550, H / 2 - 35 - 10 * (1 - a_u), alpha=a_u)
 
     else:
-        # Phase 3: 守られてきたってこと！ — serene, radiant full-figure sanctuary in pure white
+        # Phase 3: 守られてきたってこと！ — bespoke cradling-light full-body in radiant pure white sanctuary
         u = clamp((t - tC) / max(0.01, t_dark - tC))
         # Ultra-soft ethereal double-exposure bloom of her gentle smile floating in the white light
         sm = load_asset("c11_smile", "mono")
         sm_s = 1220 / sm.shape[1] * (1.0 + 0.03 * u)
-        put(c, sm, W / 2, H / 2 + 220, scale=sm_s, alpha=0.18 * ease_out(clamp(u / 0.25)))
+        put(c, sm, W / 2, H / 2 + 220, scale=sm_s, alpha=0.16 * ease_out(clamp(u / 0.25)))
         # Small luminous low-poly orange heart gently pulsing behind her
-        draw_heart(c, W / 2, H / 2 - 65, 92 * (1 + 0.05 * kick_pulse(t)), ay=0.35 * math.sin(lt * 1.1), ax=0.08,
-                   orange=0.85, glow=0.35, alpha=0.42)
-        # Claude standing whole, crisp, and luminous in the vast white center (matching ref MV 00:10.000)
-        z = lerp(0.62, 0.54, ease_out(u))
-        put(c, ch, W / 2, H / 2 + 18, scale=base_s * z, alpha=0.98)
+        draw_heart(c, W / 2, H / 2 - 80, 96 * (1 + 0.05 * kick_pulse(t)), ay=0.35 * math.sin(lt * 1.1), ax=0.08,
+                   orange=0.85, glow=0.35, alpha=0.38)
+        # Bespoke cradling-light full-body illustration centered in vast white space
+        ch3 = load_asset("n30_home_embrace", "mono")
+        s3 = (H / ch3.shape[0]) * lerp(0.76, 0.66, ease_out(u))
+        put(c, ch3, W / 2, H / 2 + 12, scale=s3, alpha=0.99)
+        # Soft warm light bloom pulsing subtly over the light in her hands
+        yy, xx = np.ogrid[:H, :W]
+        r_h = np.hypot(xx - W / 2, yy - (H / 2 - 115 * (s3 / (H / ch3.shape[0])))).astype(np.float32)
+        hglow = np.exp(-r_h / (75.0 + 18.0 * kick_pulse(t))) * (0.35 + 0.15 * kick_pulse(t))
+        c[:] = np.clip(c + hglow[..., None] * np.array([1.0, 0.72, 0.35], np.float32)[None, None, :], 0, 1)
         # Symmetrical crisp typography flanking her cleanly
         a_t = ease_out(clamp((t - tC) / 0.16))
         dx_ = 28 * (1 - a_t)
-        put(c, kt.wimg("あなたに守られて", 58, "jpm", INKD, raw=True), W / 2 - 430 - dx_, H / 2 + 6, alpha=a_t)
-        put(c, kt.wimg("きたってこと！", 64, "jpm", OR, raw=True), W / 2 + 430 + dx_, H / 2 + 6, alpha=a_t)
+        put(c, kt.wimg("あなたに守られて", 58, "jpm", INKD, raw=True), W / 2 - 480 - dx_, H / 2 + 6, alpha=a_t)
+        put(c, kt.wimg("きたってこと！", 64, "jpm", OR, raw=True), W / 2 + 480 + dx_, H / 2 + 6, alpha=a_t)
+
+    # Foreground parallax petals (flipped, faster drift) for dimensional richness
+    pet_fg = petals[:, ::-1]
+    put(c, pet_fg, W / 2 + 60 - 52 * lt, H / 2 + 120 - 65 * lt, scale=ps_bg * 1.18, alpha=0.45)
 
     fl = max(_flash(t, [t37_0], 0.14, 0.35), _flash(t, [tC], 0.20, 0.42))
     return dict(flash=fl, bloom=0.18 + 0.22 * warm, grain=0.02)

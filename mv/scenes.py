@@ -1768,8 +1768,8 @@ CREDITS = [
     ("", "thin", 16),
     ("Character  Claude娘   design by zipzippipe", "sans", 18),
     ("Illustrations   GPT Image  (via Codex)", "thin", 18),
-    ("Direction   回首空城  /  Claude", "jpm", 18),
-    ("Motion / Code   Claude", "thin", 18),
+    ("Direction   回首空城  /  Claude  /  Gemini", "jpm", 18),
+    ("Motion / Code   Claude  /  Gemini", "thin", 18),
 ]
 
 

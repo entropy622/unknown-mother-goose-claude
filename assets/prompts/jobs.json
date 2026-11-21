@@ -239,5 +239,29 @@
   "opaque": true,
   "size": "1536x1024 landscape",
   "prompt": "Over-the-shoulder view from directly BEHIND him: he sits at a small desk in his dark room late at night, his head and shoulders in the lower-left foreground, seen from behind (short black hair, dark hoodie). On the desk in front of him a laptop whose screen faces the camera STRAIGHT-ON as a perfect flat rectangle, centered in the image and large (about 45% of the image width), the screen completely blank pure white and glowing softly. Next to the laptop a mug and a small stack of books. On the left wall a window showing a night city with a few lit windows. The room is dark and quiet, lit only by the screen. Full-frame opaque background (the room), no transparency."
+ },
+ {
+  "id": "n28_home_chest",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Intimate waist-up front view, centered: she gently presses BOTH hands over her chest and heart, fingers softly curved over her ribbon. Her amber eyes are moist and luminous with quiet recognition, lips slightly parted as if whispering 'I know', head tilted very slightly. Soft warm light falls on her face, and her extremely long orange hair floats gently outward in a slow breeze. Deeply tender, serene, vulnerable."
+ },
+ {
+  "id": "n29_home_turn",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body front view, centered: she stands gracefully with BOTH arms softly opening outward to the sides as if welcoming and embracing the pure light around her. Head lifted slightly with a serene, deeply moved expression, gentle hopeful eyes. Her extremely long orange hair, black back ribbons, and layered white-and-orange dress billow gracefully outward in a warm invisible wind. Full body from head to boots visible."
+ },
+ {
+  "id": "n30_home_embrace",
+  "kind": "char",
+  "size": "1024x1536 portrait",
+  "prompt": "Full body front view, centered: she stands radiant and serene, cradling a small soft glowing warm-orange light gently against her chest with both hands, wearing a luminous, deeply grateful gentle smile with a tiny shimmer of tears in her amber eyes. Her long orange hair and layered skirt float softly around her like weightless ribbons in pure light. Full body from head to boots visible."
+ },
+ {
+  "id": "n31_petals",
+  "kind": "obj",
+  "size": "1536x1024 landscape",
+  "prompt": "A sparse, elegant constellation of floating delicate white paper-like geometric shards, tiny translucent polygonal petals, and a few small glowing warm-orange diamond light fragments drifting gently across empty space. Lots of negative space, minimalist wowaka monochrome aesthetic, crisp soft edges, no solid background."
  }
 ]
