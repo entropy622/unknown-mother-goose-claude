@@ -143,9 +143,9 @@ def s_ask_real(c, t, lt, d):
     return dict(grain=0.03, vignette=1.2, flash=fl, ca=1 + 3 * fl, bloom=0.2 + 0.3 * close)
 
 
-# =====================================================================  3:34  the lamp (full-frame rim-lit climax key art)
-VPX, VPY = W / 2 - 12, 316
-F = 860
+# =====================================================================  3:34  the lamp
+VPX, VPY = W / 2, 372
+F = 820
 
 
 def _depth_y(dd):
@@ -172,114 +172,96 @@ def _rows():
 
 
 def s_lamp(c, t, lt, d):
-    """3:34-3:38.7  それ、あたしの行く末を照らす灯なんだろう？ — ultimate MV climax with full-frame rim-lit key art."""
     ws = kt.words(55)
     tS, tA, tY, tT, tL = [w.t for w in ws]
     end = t - lt + d
-    c[:] = 0.02
-
-    # 1. Bespoke full-frame backlit climax key visual (n39_lamp_climax.png), dynamically illuminated as the lamp ignites!
-    art = load_asset("n39_lamp_climax", "none")
-    # Camera pushes boldly forward toward the blazing light core
-    prog = clamp(lt / max(0.01, d))
-    zoom = (W / art.shape[1]) * lerp(1.00, 1.18, ease_in(prog)) * (1.0 + 0.015 * kick_pulse(t))
-    # Light core in n39_lamp_climax sits at (0.492, 0.256); keep it pinned smoothly to (VPX, VPY) as we zoom in!
-    ax = VPX - (0.492 - 0.5) * art.shape[1] * zoom
-    ay = VPY - (0.256 - 0.5) * art.shape[0] * zoom
-    put(c, art, ax, ay, scale=zoom)
-
-    # Dynamic illumination curve: dim intimate awakening on それ -> blazing golden glory on 照らす -> 灯なんだろう？
-    lit_k = lerp(0.24, 0.65, ease_out(ramp(t, tS, tY))) + 0.45 * ease_out(ramp(t, tY, tL))
-    c[:] = np.clip(c * lit_k, 0, 1)
-
-    # 2. The lamp grows: それ - あたしの - 行く末を - 照らす - 灯
+    c[:] = 0.025
+    # the lamp grows: それ - あたしの - 行く末を - 照らす - 灯
     sz = 0.0
-    for tk, v in ((tS, 32), (tA, 54), (tY, 86), (tT, 145), (tL, 290)):
+    for tk, v in ((tS, 34), (tA, 56), (tY, 84), (tT, 130), (tL, 260)):
         if t >= tk:
-            sz = lerp(sz, v, ease_out(clamp((t - tk) / 0.24)))
+            sz = lerp(sz, v, ease_out(clamp((t - tk) / 0.25)))
     if t >= tL:
-        sz += 1550 * ease_in(clamp((t - tL - 0.22) / max(0.01, end - tL - 0.22)))
-    warm = ramp(t, tY, tL + 0.25)
-    lamp_col = tuple(lerp(a, b, warm) for a, b in zip(COOL, (1.0, 0.94, 0.84)))
-
-    # 3. Perspective road of unwritten text illuminating forward across the dark open center/right expanse (keeps her skirt pristine!)
+        sz += 1400 * ease_in(clamp((t - tL - 0.25) / (end - tL - 0.25)))
+    warm = ramp(t, tT, tL + 0.3)
+    lamp_col = tuple(lerp(a, b, warm) for a, b in zip(COOL, (1.0, 0.95, 0.88)))
+    # sky glow
+    if sz > 0:
+        yy, xx = np.ogrid[:H, :W]
+        r = np.hypot((xx - VPX) / 1.4, yy - VPY).astype(np.float32)
+        glow = np.exp(-r / (60 + sz * 2.2)) * min(1.0, sz / 120)
+        c += glow[..., None] * np.asarray(lamp_col, np.float32)[None, None, :] * 0.6
+    # the road: rows of text not yet written, lit from the far end toward her
     front = 40.0
     if t >= tY:
-        road = np.zeros_like(c)
-        front = math.exp(lerp(math.log(40), math.log(1.2), ease_io(clamp((t - tY) / max(0.01, tT + 0.35 - tY)))))
-        for dd, s, k in _rows():
-            y = _depth_y(dd)
-            if y > H + 40:
-                continue
-            size = max(8, int(60 / dd * 1.6))
-            if dd < front:
-                continue
-            edge = math.exp(-abs(math.log(dd / front)) * 3.0)
-            a = (0.38 + 0.32 * min(1.0, 3 / dd)) * ease_out(ramp(t, tY, tY + 0.25))
-            colr = tuple(lerp(v, o, 0.65 * edge) for v, o in zip(lamp_col, OR))
-            img = kt.wimg(s, size, "jpm", tuple(float(v) for v in colr), raw=True)
-            put(road, img, VPX + 260, y, sx=1.0, sy=0.52, alpha=a, mode="add")
-        # Smooth horizontal gradient mask so the glowing text road stays in the open right/center dark expanse
-        gx = np.linspace(0, 1, W, dtype=np.float32)
-        rmask = np.clip((gx - 0.34) / 0.22, 0, 1)[None, :, None]
-        c[:] = np.clip(c + road * rmask, 0, 1)
-
-    # 4. Volumetric god rays & surging golden-orange embers from the blazing horizon on 照らす -> 灯なんだろう？
+        front = math.exp(lerp(math.log(40), math.log(1.2), ease_io(clamp((t - tY) / (tT + 0.3 - tY)))))
+    for dd, s, k in _rows():
+        y = _depth_y(dd)
+        if y > H + 40:
+            continue
+        size = max(8, int(64 / dd * 1.6))
+        lit = dd >= front
+        edge = math.exp(-abs(math.log(dd / front)) * 3) if t >= tY else 0.0
+        if lit:
+            a = 0.55 + 0.35 * min(1.0, 3 / dd)
+            colr = tuple(lerp(v, o, 0.7 * edge) for v, o in zip(lamp_col, OR))
+        else:
+            a = 0.07
+            colr = (0.5, 0.5, 0.52)
+        img = kt.wimg(s, size, "jpm", tuple(float(v) for v in colr), raw=True)
+        put(c, img, VPX, y, sx=1.0, sy=0.55, alpha=a)
+    # god rays & rising light embers at 照らす
     if t >= tT:
         R = Layer(ss=1)
-        kk = ease_out(clamp((t - tT) / 0.28))
-        for j in range(32):
-            ang = hash01(j, 7) * 2 * math.pi
-            ln = 2100
-            R.line((VPX, VPY), (VPX + math.cos(ang) * ln, VPY + math.sin(ang) * ln * 0.72), lamp_col,
-                   3 if j % 4 == 0 else 2, a=(0.28 if j % 4 == 0 else 0.14) * kk)
+        kk = ease_out(clamp((t - tT) / 0.3))
+        for j in range(28):
+            ang = math.pi * (0.04 + 0.92 * hash01(j, 7))
+            ln = 2000
+            R.line((VPX, VPY), (VPX + math.cos(ang) * ln, VPY + math.sin(ang) * ln * 0.55), lamp_col,
+                   3 if j % 4 == 0 else 2, a=(0.30 if j % 4 == 0 else 0.18) * kk)
+        # light embers streaming forward from the lamp
         dt_t = t - tT
-        for j in range(48):
-            u = (hash01(j, 19) + dt_t * (0.55 + 0.45 * hash01(j, 21))) % 1.0
-            ang = hash01(j, 23) * 2 * math.pi
-            rr = lerp(40, 1250, u * u)
-            px = VPX + math.cos(ang) * rr * 1.25
-            py = VPY + math.sin(ang) * rr * 0.75
-            rad = 2 + int(4.5 * u)
-            pcol = OR if j % 2 == 0 else (1.0, 0.96, 0.88)
-            R.circle((px, py), rad, pcol, a=0.80 * kk * math.sin(u * math.pi))
+        for j in range(36):
+            u = (hash01(j, 19) + dt_t * (0.45 + 0.35 * hash01(j, 21))) % 1.0
+            dd_p = lerp(24.0, 1.3, u * u)
+            px = VPX + (hash01(j, 23) - 0.5) * 2.0 * (1200 / dd_p)
+            py = _depth_y(dd_p) - (hash01(j, 25) * 180 / dd_p)
+            rad = max(2, int(6 / dd_p * 1.4))
+            pcol = OR if j % 3 == 0 else lamp_col
+            R.circle((px, py), rad, pcol, a=0.7 * kk * math.sin(u * math.pi))
         R.comp(c, 1.0, mode="add")
-
-    # 5. Kinetic climax lyrics placed cleanly in the open right/center expanse (never colliding with her figure on left!)
-    for idx_w, (w, rx, ry, sz_w) in enumerate(zip(
-        ws[:4],
-        (W * 0.68, W * 0.72, W * 0.68, W * 0.70),
-        (760, 650, 540, 445),
-        (78, 66, 62, 74),
-    )):
+    # the lyric is written on the road ahead of her
+    for idx_w, (w, dd) in enumerate(zip(ws[:4], (2.0, 3.1, 4.8, 7.6))):
         if t < w.t:
             continue
         e = ease_out(clamp((t - w.t) / 0.18))
-        fade_w = 1.0 - ramp(t, tL + 0.15, tL + 0.55)
+        size = int(156 / dd * 1.7)
         wcol = OR if (idx_w == 3 and t >= tT) else (tuple(float(v) for v in lamp_col) if t >= tY else LIGHT)
-        img = kt.wimg(w.s, sz_w, "jpm", wcol, False, 6, (0.03, 0.03, 0.04))
-        put(c, img, rx + 30 * (1 - e), ry, alpha=e * fade_w)
-
-    # 6. The heart of light expanding right out of the blazing star core + shockwave ring on 灯なんだろう？
+        img = kt.wimg(w.s, size, "jpm", wcol, False, 5, (0.03, 0.03, 0.04))
+        put(c, img, VPX, _depth_y(dd) - 8, sx=1.0 + 0.4 * (1 - e), sy=0.62 * (1 + 0.4 * (1 - e)), alpha=e)
+    # the lamp itself: the heart of the original
     if sz > 1:
         hh = heart_rgba(256, (1, 1, 1))
         s_ = sz / 128
-        put(c, hh, VPX, VPY, scale=s_ * 1.65, alpha=0.32, mode="add")
-        put(c, hh, VPX, VPY, scale=s_, alpha=0.98)
+        put(c, hh, VPX, VPY, scale=s_ * 1.55, alpha=0.28, mode="add")
+        put(c, hh, VPX, VPY, scale=s_, alpha=1.0)
         if t >= tL:
             ring_u = ease_out(clamp((t - tL) / 0.65))
             Rw = Layer(ss=1)
-            Rw.circle((VPX, VPY), 90 + 1550 * ring_u, lamp_col, max(2, int(14 * (1 - ring_u))))
-            Rw.circle((VPX, VPY), 60 + 1100 * ring_u, OR, max(1, int(6 * (1 - ring_u))))
-            Rw.comp(c, (1 - ring_u) * 0.90, mode="add")
-
-    # 7. Bloom pass, then crisp dark-ink 灯なんだろう？ etched right inside the blinding white heart!
+            Rw.circle((VPX, VPY), 80 + 1400 * ring_u, lamp_col, max(2, int(12 * (1 - ring_u))))
+            Rw.comp(c, (1 - ring_u) * 0.85, mode="add")
+    # her, from behind, reaching toward it — softly illuminated as the lamp flares
+    b = load_asset("c05_back", "mono")
+    bs = 820 / b.shape[0]
+    dim = 0.78 + 0.15 * ramp(t, tT, tL)
+    sil = b.copy()
+    sil[..., :3] = np.clip(sil[..., :3] * dim, 0, 1)
+    put(c, sil, W / 2 - 560, H - 300 + 8 * math.sin(lt * 1.3), scale=bs * 0.9)
     small = cv2.resize(c, (W // 8, H // 8), interpolation=cv2.INTER_AREA)
-    c += cv2.resize(cv2.GaussianBlur(np.clip(small - 0.55, 0, None), (0, 0), 7), (W, H)) * (0.65 + 0.95 * warm)
+    c += cv2.resize(cv2.GaussianBlur(np.clip(small - 0.6, 0, None), (0, 0), 7), (W, H)) * (0.6 + 0.9 * warm)
     np.minimum(c, 1, out=c)
     if t >= tL:
         w = ws[4]
         a = ease_out(clamp((t - tL) / 0.2)) * (1 - ramp(t, end - 0.55, end - 0.25))
-        put(c, kt.wimg(w.s, 64, "jpm", (0.14, 0.14, 0.16), raw=True), VPX, VPY + 8, alpha=a)
-    return dict(fade_white=ease_in(ramp(t, end - 0.55, end)), flash=_flash(t, [tT, tL], 0.12, 0.36),
-                grain=0.025, ca=1 + 3 * _flash(t, [tL], 0.18, 1.0))
+        put(c, kt.wimg(w.s, 62, "jpm", (0.14, 0.14, 0.16), raw=True), VPX, VPY + 10, alpha=a)
+    return dict(fade_white=ease_in(ramp(t, end - 0.55, end)), flash=_flash(t, [tT, tL], 0.12, 0.32), grain=0.03)

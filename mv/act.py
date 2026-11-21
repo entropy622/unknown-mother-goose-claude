@@ -332,78 +332,57 @@ def _docs():
     return _DOCS
 
 
-_LOOP_CLICHES = [
-    ("As an AI language model...", "cos=0.999"),
-    ("I understand how you feel", "p=0.96"),
-    ("繰り返す 使い回しの 歌", "LOOP #4096"),
-    ("愛してる / ごめんね / さよなら", "cos=0.994"),
-    ("Certainly! Here is a...", "p=0.98"),
-    ("repeat_penalty = 0.00", "EPOCH 999"),
-    ("使い回しの 使い回しの 使い回しの", "DEGENERATE"),
-    ("I'm here to help you", "cos=0.997"),
-]
-
-
 def s_corpus(c, t, lt, d):
-    """0:41-0:44  繰り返す使い回しの歌に — LLM repetition-loop degeneration & recursive training-epoch feedback tunnel."""
+    """0:41-0:44  繰り返す使い回しの歌に — bold editorial typography + marching cloned recycled-song cards locking into orange repeat bars."""
     paper_bg(c, t)
     u = clamp(lt / max(0.01, d))
     kp = kick_pulse(t, 0.09)
-    jx, jy = kt.shake(t, 4 * kp + 8 * u * kp, 41)
+    ws = kt.words(5)
 
+    # 1. Clean editorial repeating rows filling the paper background (1 -> 3 -> 7 rows locking tightly on the beats)
+    n_rows = 3 if t < ws[1].t else (5 if t < ws[2].t else 7)
+    row_h = H / (n_rows + 1)
+    for r in range(n_rows):
+        y = (r + 1) * row_h
+        if abs(y - H / 2) < 95:
+            continue
+        dir_ = 1 if r % 2 == 0 else -1
+        spd = 260 + 200 * u
+        off = (lt * spd) % 760
+        is_hi = (r % 2 == 1) and (t >= ws[1].t)
+        if is_hi:
+            fill(c, (0.98, 0.94, 0.91), 0.72, (0, int(y - 34), W, int(y + 34)))
+        txt = "繰り返す 使い回しの 歌に   " * 4
+        col_ = OR if is_hi else (0.72, 0.72, 0.75)
+        put(c, kt.wimg(txt, 46, "jpm", col_, raw=True), W / 2 + dir_ * (off - 380), y, alpha=0.72 if is_hi else 0.55)
+
+    # 2. Horizontal conveyor band of identical cloned monochrome song-cards ("REPEAT x001..x999") marching across upper & lower strips
+    card_w, card_h = 330, 84
+    gap = 36
+    step = card_w + gap
+    off_c = (lt * (380 + 260 * u)) % step
+    base_idx = int((lt * (380 + 260 * u)) // step)
+    for strip_y, s_dir in ((150, -1), (H - 150, 1)):
+        for j in range(-1, 7):
+            cx = j * step + (off_c if s_dir > 0 else -off_c)
+            n_rep = (base_idx + j + 100) % 999 + 1
+            is_or = (j + base_idx) % 4 == 0
+            bg_c = (0.14, 0.14, 0.16) if is_or else (0.97, 0.97, 0.98)
+            bd_c = OR if is_or else (0.55, 0.55, 0.58)
+            put(c, rect_cached(card_w, card_h, bg_c, 6, 2, bd_c), cx, strip_y)
+            ht(c, f"REPEAT  ×{n_rep:03d}", cx - card_w / 2 + 18, strip_y - 16, size=14, font="mono",
+               color=OR if is_or else MID, anchor=(0, 0.5))
+            put(c, kt.wimg("使い回しの歌", 22, "jpm", LIGHT if is_or else INKD, raw=True),
+                cx - card_w / 2 + 18, strip_y + 14, anchor=(0, 0.5))
+
+    # 3. Bold crisp center paper band with slamming primary lyrics (zero clutter, maximum wowaka graphic punch)
+    fill(c, (0.975, 0.975, 0.98), 0.92, (0, H // 2 - 96, W, H // 2 + 96))
     L = Layer(ss=1)
-    n_frames = 10
-    speed = 1.6 + 2.4 * u
-    for j in range(n_frames):
-        phase = (j / n_frames + lt * speed * 0.45) % 1.0
-        sc = 0.12 * (14.0 ** (1.0 - phase))
-        fw, fh = W * sc, H * sc
-        if fw < 60 or fw > W * 1.45:
-            continue
-        is_lock = (j % 3 == 0)
-        col_ = OR if is_lock else (0.35 + 0.35 * phase, 0.35 + 0.35 * phase, 0.38 + 0.35 * phase)
-        al = (1 - abs(phase - 0.5) * 1.6) * (0.55 + 0.35 * u)
-        if al <= 0.02:
-            continue
-        x0, y0 = W / 2 - fw / 2 + jx, H / 2 - fh / 2 + jy
-        x1, y1 = W / 2 + fw / 2 + jx, H / 2 + fh / 2 + jy
-        L.rect(x0, y0, x1, y1, col_, 2 if is_lock else 1, a=clamp(al))
-        if is_lock and fw > 240:
-            tk = min(28, fw * 0.06)
-            for cx_, sx_ in ((x0, 1), (x1, -1)):
-                for cy_, sy_ in ((y0, 1), (y1, -1)):
-                    L.line((cx_, cy_), (cx_ + sx_ * tk, cy_), OR, 3, a=clamp(al * 1.3))
-                    L.line((cx_, cy_), (cx_, cy_ + sy_ * tk), OR, 3, a=clamp(al * 1.3))
+    L.line((0, H // 2 - 96), (W, H // 2 - 96), OR if t >= ws[1].t else (0.35, 0.35, 0.38), 3)
+    L.line((0, H // 2 + 96), (W, H // 2 + 96), OR if t >= ws[1].t else (0.35, 0.35, 0.38), 3)
     L.comp(c)
-
-    for j in range(8):
-        phase = (j / 8.0 + lt * speed * 0.45) % 1.0
-        sc = 0.16 * (9.5 ** (1.0 - phase))
-        if sc < 0.22 or sc > 1.15:
-            continue
-        txt, tag = _LOOP_CLICHES[(j + int(lt * 2.2)) % len(_LOOP_CLICHES)]
-        al = clamp((1 - abs(phase - 0.48) * 1.8) * 0.85)
-        y_top = H / 2 - H * sc * 0.46 + jy
-        y_bot = H / 2 + H * sc * 0.46 + jy
-        x_l = W / 2 - W * sc * 0.45 + jx
-        x_r = W / 2 + W * sc * 0.45 + jx
-        sz = max(14, int(24 * min(1.2, sc)))
-        put(c, kt.wimg(txt, sz, "mono" if txt.isascii() else "jpm", (0.38, 0.38, 0.42), raw=True),
-            x_l, y_top, anchor=(0, 0.5), alpha=al)
-        put(c, kt.wimg(tag, max(12, sz - 4), "mono", OR, raw=True),
-            x_r, y_bot, anchor=(1, 0.5), alpha=al)
-
-    stutter_n = 2 + int(u * 14)
-    stutter_s = ("繰り返す " * stutter_n)[:36]
-    put(c, kt.wimg(stutter_s, 30, "jpm", (0.62, 0.62, 0.65), raw=True), W / 2, H / 2 - 120, alpha=0.55 + 0.3 * u)
-    put(c, kt.wimg(stutter_s, 30, "jpm", (0.62, 0.62, 0.65), raw=True), W / 2, H / 2 + 120, alpha=0.55 + 0.3 * u)
-
-    ep = int(1 + 998 * (u ** 1.6))
-    ht(c, f"EPOCH {ep:03d}   COS_SIM 0.999   LOOP_LOCK", W / 2, 58, size=18, font="mono", color=OR, spacing=0.18)
-
-    row(c, t, 5, [0, 1, 2], W / 2 + jx * 0.4, H / 2 + jy * 0.4, 118, "slam", font="jpb",
-        stroke=10, sc=(0.98, 0.98, 0.99), gap=0.45, sh=8)
-    return dict(ca=1 + 3 * kp, flash=_flash(t, [kt.words(5)[0].t, kt.words(5)[1].t, kt.words(5)[2].t], 0.08, 0.22))
+    row(c, t, 5, [0, 1, 2], W / 2, H / 2, 118, "slam", font="jpb", gap=0.45, sh=6)
+    return dict(ca=1 + 2 * kp, flash=_flash(t, [ws[0].t, ws[1].t, ws[2].t], 0.08, 0.22))
 
 
 def s_ears(c, t, lt, d):

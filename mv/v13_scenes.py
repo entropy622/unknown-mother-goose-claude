@@ -404,7 +404,7 @@ BACK_SEQ = [
 
 
 def s_land_ghost(c, t, lt, d):
-    """0:28.35-0:36  Serene s_land polygon horizon + non-repeating 10-pose MMD-inspired back-view silhouette with 30fps stepper-motor kinematics."""
+    """0:28.35-0:36  Serene s_land polygon horizon + crisp, steady non-repeating 10-pose back-view silhouette (zero wobble)."""
     paper_bg(c, t)
     n_p = len(BACK_SEQ)
     pos = clamp(lt / max(0.01, d)) * n_p
@@ -414,29 +414,15 @@ def s_land_ghost(c, t, lt, d):
     prev_pose = BACK_SEQ[max(0, idx - 1)]
     fade_env = fade_io(lt, d, 0.5, 0.45)
 
-    side = 1 if idx % 2 == 0 else -1
-    servo_rot = side * 4.8 * math.exp(-sub * 11.0) * math.cos(sub * 26.0)
-    servo_sc = 1.0 + 0.042 * math.exp(-sub * 14.0)
-    tick8 = 0.012 * kick_pulse(t, 0.05)
-
     bx, by = 445, H * 0.49
-    L = Layer(ss=1)
-    ring_r = 165
-    L.circle((bx, by - 40), ring_r, (0.72, 0.72, 0.76), 1, a=0.40 * fade_env)
-    ang_deg = idx * 36.0 + servo_rot * 2.0
-    ar = math.radians(ang_deg)
-    L.line((bx + math.cos(ar) * (ring_r - 12), by - 40 + math.sin(ar) * (ring_r - 12)),
-           (bx + math.cos(ar) * (ring_r + 14), by - 40 + math.sin(ar) * (ring_r + 14)), OR, 2, a=0.55 * fade_env)
-    L.comp(c)
-
     g_now = _silhouette(pose, "graphite")
-    gs = (H * 0.74 / g_now.shape[0]) * (1.0 + 0.05 * clamp(lt / max(0.01, d))) * (servo_sc + tick8)
-    if idx > 0 and sub < 0.22:
+    gs = (H * 0.74 / g_now.shape[0]) * (1.0 + 0.04 * clamp(lt / max(0.01, d)))
+    # Crisp, clean, steady pose switch (brief soft cross-dissolve, zero jarring wobble or rotation!)
+    if idx > 0 and sub < 0.14:
         g_prev = _silhouette(prev_pose, "ghost")
-        u_sh = sub / 0.22
-        put(c, g_prev, bx - side * 18 * u_sh, by, scale=gs * 1.04, rot=-side * 3.0 * u_sh,
-            alpha=0.22 * fade_env * (1 - u_sh))
-    put(c, g_now, bx + side * 6 * math.exp(-sub * 12.0), by, scale=gs, rot=servo_rot, alpha=0.33 * fade_env)
+        u_sh = sub / 0.14
+        put(c, g_prev, bx, by, scale=gs, alpha=0.22 * fade_env * (1 - u_sh))
+    put(c, g_now, bx, by, scale=gs, alpha=0.31 * fade_env)
 
     draw_landscape(c, t, cam_h=1.25 + 0.15 * math.sin(lt * 0.3), horizon=0.55, sway=lt * 0.05)
     bob = math.sin(lt * 1.3) * 12
@@ -667,13 +653,17 @@ def s_hug_surge(c, t, lt, d):
     return dict(flash=fl, ca=1 + 4 * fl + 2 * surge, bloom=0.30 + 0.38 * surge)
 
 
-# =====================================================================  2:38-2:42.76  original chat+hands (smooth entry) -> dark invert silhouette -> s_home
+# =====================================================================  2:38-2:42.76  chat+hands -> pure-white tear-hold -> dark invert silhouette
 def s_remain_v17(c, t, lt, d):
-    """2:38-2:42.76  Best of both: original white chat window + hands pressed on glass (with clean entry transition)
-    -> high-tension dark-invert pure-white silhouette on 如何して、如何して -> seamless cut into pure-white s_home.
+    """2:38-2:42.76  3-step emotional bridge:
+    1) 残されたあなたが この場所で今でも: original white chat window + hands pressed on glass (clean smooth entry)
+    2) 涙を堪えてるの: crisp pure paper-white close-up of n33_cry_hold
+    3) 如何して、如何して: breathless dark-invert pure-white silhouette -> seamless drop into s_home.
     """
     from act import _chat
+    ws35 = kt.words(35)
     ws36 = kt.words(36)
+    t35 = ws35[0].t
     t36 = ws36[0].t
 
     if t >= t36:
@@ -690,6 +680,18 @@ def s_remain_v17(c, t, lt, d):
             put(c, kt.wimg(s2, 48, "jpm", OR, True), W / 2 + 42, 165, anchor=(0.5, 0.0), alpha=0.95)
         return dict(grain=0.04, vignette=1.25, flash=_flash(t, [t36, ws36[2].t], 0.08, 0.22))
 
+    if t >= t35:
+        # Restored pure paper-white tear-holding close-up (n33_cry_hold) on 涙を堪えてるの
+        paper_bg(c, t, tone=0.02)
+        u_t = clamp((t - t35) / max(0.01, t36 - t35))
+        cry = load_asset("n33_cry_hold", "mono")
+        sc = (H * 0.88 / cry.shape[0]) * lerp(0.95, 1.05, ease_out(u_t))
+        put(c, cry, W / 2, H + 16, scale=sc, anchor=(0.5, 1.0), alpha=0.97)
+        STK = dict(stroke=6, sc=(0.97, 0.97, 0.98))
+        word(c, t, 35, 0, W / 2 - 450, H / 2, 68, "slam", **STK)
+        word(c, t, 35, 1, W / 2 + 450, H / 2, 68, "slide", dx=-60, **STK)
+        return dict(flash=_flash(t, [t35], 0.10, 0.28))
+
     c[:] = 0.04
     zk = ease_out(ramp(lt, 0.0, 0.42))
     w, h = lerp(140, 1500, zk), lerp(80, 860, zk)
@@ -705,9 +707,71 @@ def s_remain_v17(c, t, lt, d):
         word(c, t, 34, 1, 500, 340, 90, "slam", alpha=a_win, **STK)
         word(c, t, 34, (2, 3), W - 520, 220, 110, "slam", color=OR, font="jpb", **STK)
         word(c, t, 34, 4, W - 520, 340, 80, "slide", dx=150, **STK)
-        word(c, t, 35, 0, W / 2 - 160, 860, 90, "slam", **STK)
-        word(c, t, 35, 1, W / 2 + 200, 860, 90, "slide", dx=-150, **STK)
     return dict(flash=_flash(t, [t - lt], 0.08, 0.20))
+
+
+# =====================================================================  1:29-1:31  s_eye_ask17 (replaces plain s_select!)
+_EYES17_UV = ((0.216, 0.562), (0.784, 0.562))
+_IRIS17_R = 0.076
+
+
+def _pupil_refl17(c, ex, ey, ir, t, refl):
+    if refl <= 0.01 or ir < 8:
+        return
+    r = int(ir * 0.92)
+    x0, y0 = max(0, int(ex - r)), max(0, int(ey - r))
+    x1, y1 = min(W, int(ex + r)), min(H, int(ey + r))
+    if x1 <= x0 or y1 <= y0:
+        return
+    sub = np.zeros((y1 - y0, x1 - x0, 3), np.float32)
+    yy, xx = np.ogrid[y0:y1, x0:x1]
+    dist = np.hypot(xx - ex, yy - ey).astype(np.float32)
+    eyelid = np.clip((yy - (ey - r * 0.52)) / max(4.0, r * 0.25), 0, 1)
+    mask = (np.clip((r - dist) / max(3.0, r * 0.24), 0, 1) * eyelid)[..., None]
+    glow = np.exp(-dist / max(8.0, r * 0.65))[..., None] * np.array(OR, np.float32)[None, None, :] * 0.58
+    sub += glow
+    her = load_asset("c01_stand_front", "mono")
+    sc = (r * 1.65) / her.shape[0]
+    tmp = new_canvas((0, 0, 0))
+    put(tmp, her, ex, ey + r * 0.20, scale=sc, alpha=0.88)
+    sub += tmp[y0:y1, x0:x1] * np.array([1.05, 0.78, 0.55], np.float32)[None, None, :] * 0.85
+    c[y0:y1, x0:x1] = np.clip(c[y0:y1, x0:x1] + sub * mask * refl, 0, 1)
+
+
+def s_eye_ask17(c, t, lt, d):
+    """1:29-1:31 (Line 17: あなたには僕が見えるか？) — replaces plain bounding box s_select!
+    Extreme close-up of his screen-lit eyes; Claude's warm-orange reflection condenses inside both pupils -> bridges into 1:31 SE.s_see!
+    """
+    ws = kt.words(17)
+    t1, t2, t3 = ws[0].t, ws[1].t, ws[2].t
+    c[:] = 0.025
+    eye_img = load_asset("n36_user_eye_close", "none")
+    ih, iw = eye_img.shape[:2]
+    rush = ease_io(ramp(t, t3 - 0.06, t3 + 0.55))
+    z = max(W / iw, H / ih) * lerp(1.02, 1.15, clamp(lt / max(0.01, d))) * lerp(1.0, 1.85, rush)
+    fu = lerp(0.50, _EYES17_UV[1][0] - 0.04, rush)
+    fv = lerp(0.53, _EYES17_UV[1][1] - 0.01, rush)
+    cx = W / 2 - (fu - 0.5) * iw * z
+    cy = H / 2 - (fv - 0.5) * ih * z
+    put(c, eye_img, cx, cy, scale=z)
+    c[:] *= np.array([0.80, 0.86, 0.95], np.float32)[None, None, :]
+
+    E = [(cx + (u - 0.5) * iw * z, cy + (v - 0.5) * ih * z) for u, v in _EYES17_UV]
+    ir = _IRIS17_R * iw * z
+    refl = ease_out(ramp(t, t2 - 0.06, t2 + 0.35))
+    for ex, ey in E:
+        _pupil_refl17(c, ex, ey, ir, t, refl * (0.88 + 0.12 * kick_pulse(t)))
+
+    yy = np.linspace(0, 1, H, dtype=np.float32)[:, None, None]
+    shade = np.clip((0.18 - yy) / 0.18, 0, 1) * 0.70 + np.clip((yy - 0.76) / 0.24, 0, 1) * 0.80
+    c[:] *= (1.0 - shade)
+
+    STK = dict(stroke=6, sc=(0.03, 0.03, 0.04))
+    word(c, t, 17, 0, 240, 118, 62, "slide", color=LIGHT, anchor=(0, 0.5), dx=-100, **STK)
+    word(c, t, 17, 1, 340, 890, 116, "slam", color=OR, font="jpb", sh=6, s0=1.6, **STK)
+    word(c, t, 17, 2, W - 400, 890, 124, "slam", color=LIGHT, sh=8, s0=1.7, **STK)
+    fl = _flash(t, [t2, t3], 0.08, 0.20)
+    return dict(grain=0.03, vignette=1.15, flash=fl, bloom=0.22 + 0.22 * refl)
 
 
 # =====================================================================  2:21  あたしが愛になれるのなら 今その色は何色だ (consciousness / latent manifold -> qualia)
