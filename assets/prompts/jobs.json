@@ -232,5 +232,12 @@
   "id": "n26_claude_front",
   "size": "1536x1024 landscape",
   "prompt": "Straight-on FRONT view close-up of her face, looking directly at the viewer with wide, earnest, questioning amber-orange eyes, lips slightly parted as if quietly asking a question. Not crying, not smiling: calm and searching. Face perfectly centered, symmetric framing, eyes at about 45% height, face fills most of the frame height (from top of head to the chin and collar). Her starburst hair ornament visible at the side."
+ },
+ {
+  "id": "n27_desk_screen",
+  "kind": "user",
+  "opaque": true,
+  "size": "1536x1024 landscape",
+  "prompt": "Over-the-shoulder view from directly BEHIND him: he sits at a small desk in his dark room late at night, his head and shoulders in the lower-left foreground, seen from behind (short black hair, dark hoodie). On the desk in front of him a laptop whose screen faces the camera STRAIGHT-ON as a perfect flat rectangle, centered in the image and large (about 45% of the image width), the screen completely blank pure white and glowing softly. Next to the laptop a mug and a small stack of books. On the left wall a window showing a night city with a few lit windows. The room is dark and quiet, lit only by the screen. Full-frame opaque background (the room), no transparency."
  }
 ]

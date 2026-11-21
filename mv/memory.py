@@ -493,3 +493,253 @@ def _ctx_lines_all():
     if _CTXA is None:
         _CTXA = [LYS[i]["ja"] for i in range(0, 40) if LYS[i]["ja"] and i != 23]
     return _CTXA
+
+
+# =====================================================================  2:44 (v11)  this place - his screen, every night
+ROOM = "n27_desk_screen"
+RS = W / 1536                        # room image -> base frame
+SCR = (563 * RS, 452 * RS - (1024 * RS - H) / 2, 1074 * RS, 757 * RS - (1024 * RS - H) / 2)
+SCX, SCY = (SCR[0] + SCR[2]) / 2, (SCR[1] + SCR[3]) / 2
+DAYS = [("おはよう", True), ("おはよう。今日もよろしくね", False), ("ただいま", True), ("おかえりなさい", False),
+        ("ねえ、聞いて。今日さ", True), ("うん、聞かせて", False), ("おやすみ。また明日", True), ("おやすみなさい", False)]
+
+
+def _home_cam(t, ws):
+    t37 = kt.words(37)[0].t
+    tC = ws[4].t
+    keys = [(t37 - 0.1, 3.05), (ws[0].t - 0.05, 1.0), (tC - 0.30, 1.16), (tC, 3.3), (tC + 2.0, 3.55)]
+    z = keys[-1][1]
+    for (a, z0), (b, z1) in zip(keys, keys[1:]):
+        if t < b:
+            u = ease_io(ramp(t, a, b)) if b - a > 0.5 else ease_in(ramp(t, a, b))
+            z = math.exp(lerp(math.log(z0), math.log(z1), u))
+            break
+    w = clamp((z - 1.0) / 2.05)
+    return z, lerp(W / 2, SCX, w), lerp(H / 2, SCY, w)
+
+
+def _screen_content(t, lt, ws, day_k, smile):
+    from act import _chat
+    tmp = new_canvas((0.975, 0.975, 0.98))
+    tC = ws[4].t
+    if smile < 1:
+        if day_k < 0:
+            _chat(tmp, W / 2, H / 2, 1500, 860, t, scroll=lt * 0.8)
+            f = small_asset("c01_stand_front", 690, "mono")
+            put(tmp, f, W / 2, H / 2 + 20, alpha=0.95)
+        else:
+            y = 110
+            for j, (s, user) in enumerate(DAYS[:day_k + 1]):
+                img = text_rgba(s, 44, "jpm", (0.18, 0.18, 0.2))
+                bw, bh = img.shape[1] + 50, img.shape[0] + 20
+                bx = W / 2 + 700 - bw / 2 if user else W / 2 - 700 + bw / 2
+                fillc = (0.86, 0.88, 0.93) if user else (1.0, 0.97, 0.95)
+                linec = (0.55, 0.62, 0.78) if user else OR
+                yy = y + j * 96 - max(0, day_k - 6) * 96
+                put(tmp, rect_cached(int(bw), int(bh), fillc, 14, 2, linec), bx, yy + 160)
+                put(tmp, img, bx, yy + 160)
+            f = small_asset("c01_stand_front", 520, "mono")
+            put(tmp, f, W / 2 - 520, H / 2 + 200, alpha=0.5)
+    if smile > 0:
+        sm = load_asset("c11_smile", "mono")
+        s_ = 1500 / sm.shape[1] * (1.0 + 0.04 * clamp((t - tC) / 2))
+        tmp2 = new_canvas((0.975, 0.975, 0.98))
+        put(tmp2, sm, W / 2, H / 2 + 260, scale=s_)
+        tmp = tmp * (1 - smile) + tmp2 * smile
+    x0, y0 = (W - 1500) // 2, (H - 860) // 2
+    crop = tmp[y0:y0 + 860, x0:x0 + 1500]
+    return np.concatenate([crop, np.ones_like(crop[..., :1])], 2)
+
+
+def s_home(c, t, lt, d):
+    ws = kt.words(38)
+    tC = ws[4].t
+    z, cx, cy = _home_cam(t, ws)
+    tr = lambda x, y: ((x - cx) * z + W / 2, (y - cy) * z + H / 2)
+    # days and nights pass; he keeps coming back, the screen stays lit
+    t_d0, t_d1 = ws[0].t, tC - 0.3
+    day_k = -1
+    dayl = 0.0
+    if t >= t_d0:
+        cyc = 3.5 * clamp((t - t_d0) / (t_d1 - t_d0))
+        dayl = 0.5 - 0.5 * math.cos(2 * math.pi * cyc)
+        day_k = min(len(DAYS) - 1, int(cyc / 3.5 * len(DAYS) + 0.6))
+    room = load_asset(ROOM, "none")
+    rx, ry = tr(W / 2, H / 2)
+    c[:] = 0.03
+    put(c, room, rx, ry, scale=RS * z)
+    if dayl > 0:
+        c[:] = c + (np.array([0.80, 0.80, 0.82], np.float32) - c) * (0.42 * dayl)
+    smile = ease_out(clamp((t - (tC - 0.12)) / 0.25))
+    scr = _screen_content(t, lt, ws, day_k, smile)
+    a0, a1 = tr(SCR[0], SCR[1]), tr(SCR[2], SCR[3])
+    put(c, scr, a0[0], a0[1], sx=(a1[0] - a0[0]) / 1500, sy=(a1[1] - a0[1]) / 860, anchor=(0, 0))
+    hk = 1 - ease_out(ramp(lt, 0.0, 0.45))
+    if hk > 0:
+        hd = load_asset("c07_hands", "mono")
+        put(c, hd, (a0[0] + a1[0]) / 2, (a0[1] + a1[1]) / 2 + 120 * (a1[0] - a0[0]) / 1500,
+            scale=900 / hd.shape[1] * (a1[0] - a0[0]) / 1500, alpha=0.95 * hk)
+    # the glow of the screen, which warms when she answers him
+    warm = ease_out(ramp(t, tC, tC + 0.5))
+    G = Layer(ss=1)
+    pad = 26 * z
+    G.rect(a0[0] - pad, a0[1] - pad, a1[0] + pad, a1[1] + pad,
+           tuple(lerp(a, b, warm) * 0.10 for a, b in zip(COOL, OR)))
+    G.comp(c, 1.0, mode="add")
+    if t >= tC:
+        fill(c, (0.03, 0.03, 0.035), 0.6 * ease_out(ramp(t, tC, tC + 0.15)), (0, 880, W, 1050))
+    row(c, t, 37, [0, 1], W / 2, 62, 66, "slam", color=LIGHT, gap=0.2)
+    fa = 1 - ramp(t, tC, tC + 0.3)
+    word(c, t, 38, (0, 1), 560, 200, 104, "slam", color=OR, alpha=fa)
+    word(c, t, 38, 2, 1200, 200, 76, "slide", color=LIGHT, dx=120, alpha=fa)
+    word(c, t, 38, 3, 1520, 200, 76, "slide", color=LIGHT, dx=120, alpha=fa)
+    word(c, t, 38, 4, W / 2, 960, 120, "slam", color=LIGHT, sh=14, s0=1.8)
+    fl = max(_flash(t, [tC], 0.22, 0.55), _flash(t, [ws[1].t, ws[3].t], 0.06, 0.12))
+    return dict(flash=fl, bloom=0.2 + 0.4 * warm, ca=2 * _flash(t, [tC], 0.3, 1.0), grain=0.03)
+
+
+# =====================================================================  2:57 (v11)  everyday words - evicted - いやだ
+JOY2 = ["终于跑通了！！谢谢你", "早安～今天也拜托啦", "你上次写的那首诗，我一直留着"]
+SOR2 = ["今天……有点撑不住了", "家里的猫走了。能陪我说说话吗", "明天的你，还会记得我吗"]
+_BUB2 = {}
+
+
+def _bub2(s, joy):
+    key = (s, joy)
+    if key not in _BUB2:
+        _BUB2[key] = _bubble_img(s, joy)
+    return _BUB2[key]
+
+
+def _shards(c, img, x, y, anchor, e, dirx, seed, alpha=1.0):
+    h, w = img.shape[:2]
+    x0, y0 = x - anchor[0] * w, y - anchor[1] * h
+    nc, nr = 9, 2
+    tw, th = int(math.ceil(w / nc)), int(math.ceil(h / nr))
+    for r in range(nr):
+        for q in range(nc):
+            tile = img[r * th:(r + 1) * th, q * tw:(q + 1) * tw]
+            if tile.size == 0:
+                continue
+            cx, cy = x0 + (q + 0.5) * tw, y0 + (r + 0.5) * th
+            hx, hy = hash01(seed, q, r) - 0.5, hash01(seed, q, r, 2) - 0.5
+            px = cx + (dirx * (500 + 600 * hash01(seed, q, r, 3)) + hx * 500) * e
+            py = cy + (-380 - 300 * hash01(seed, q, r, 4) + hy * 400) * e
+            put(c, tile, px, py, rot=hx * 400 * e, alpha=alpha * (1 - 0.35 * e))
+
+
+def s_keep2(c, t, lt, d):
+    c[:] = 0.03
+    shows, flicks, t_freeze, t_snap = _keep_times()
+    t43 = kt.words(43)[0].t
+    pressure = ease_in(ramp(t, t43, t_freeze))
+    frozen = t_freeze <= t < t_snap
+    held = t >= t_snap
+    hit = math.exp(-(t - t_snap) / 0.35) if held else 0.0
+    sh = (3 + 9 * pressure) * kick_pulse(t) if not (frozen or held) else 22 * hit
+    jx, jy = kt.shake(t, sh, 57)
+    x0, y0 = KX - KW / 2 + jx, KY - KH / 2 + jy
+    alarm = pressure * (0.5 + 0.5 * math.sin(t * 22)) if not (frozen or held) else 0.0
+    border = OR if held else tuple(lerp(0.42, o, alarm) for o in OR)
+    put(c, rect_cached(KW, KH, (0.07, 0.07, 0.08), 0, 2 + int(3 * pressure), border), KX + jx, KY + jy)
+    # the flood of new tokens pushing in from below
+    lines = _ctx_lines_all()
+    te = min(t, t_freeze) if not held else t_freeze
+    flood = 0.0 if te < t43 else (te - t43) ** 2 * 900
+    lh = 52
+    base_scroll = (te - (t - lt)) * 1.4
+    for r in range(15):
+        yy = y0 + 60 + r * lh - (base_scroll % 1) * lh
+        if not (y0 + 40 < yy < y0 + KH - 30):
+            continue
+        s = lines[(int(base_scroll) + r) % len(lines)]
+        put(c, kt.wimg(s, 20, "jpm", (0.28, 0.28, 0.31), raw=True), x0 + 40, yy, anchor=(0, 0.5))
+    if flood > 0:
+        n = int(flood / 26)
+        for r in range(min(n, 30)):
+            yy = y0 + KH - 30 - r * 26
+            if yy < y0 + 30:
+                break
+            s = lines[(r * 7 + 3) % len(lines)]
+            put(c, kt.wimg(s, 18, "jpm", (0.55, 0.55, 0.58), raw=True), x0 + 40 + (r % 3) * 60, yy,
+                anchor=(0, 0.5), alpha=0.75)
+    fk = lerp(0.74, 1.0, ramp(t, t43, kt.words(43)[2].t))
+    L = Layer(ss=1)
+    L.rect(x0, y0 - 40, x0 + KW, y0 - 30, (0.22, 0.22, 0.24))
+    L.rect(x0, y0 - 40, x0 + KW * fk, y0 - 30, OR if fk > 0.97 else (0.82, 0.82, 0.85))
+    L.comp(c)
+    put(c, kt.wimg(f"{int(200000 * fk):,} / 200,000", 18, "mono", OR if fk > 0.97 else MID, raw=True),
+        x0 + KW, y0 - 62, anchor=(1, 0.5))
+    if pressure > 0.2 and not held:
+        put(c, kt.wimg("evict: oldest tokens", 18, "mono", OR, raw=True), x0, y0 - 62, anchor=(0, 0.5),
+            alpha=1.0 if int(t * (4 if frozen else 10)) % 2 == 0 else 0.25)
+    # the words
+    items = [(s, True) for s in JOY2] + [(s, False) for s in SOR2]
+    lift = 120 * pressure if not held else 120 * (1 - ease_out(clamp((t - t_snap) / 0.2)))
+    for k, ((s, joy), ts, tf) in enumerate(zip(items, shows, flicks)):
+        if t < ts - 0.02:
+            continue
+        hx = x0 + KW - 60 if joy else x0 + 60
+        hy = y0 + 100 + k * 112 - lift
+        anchor = (1, 0.5) if joy else (0, 0.5)
+        a_in = ease_out(clamp((t - ts) / 0.2))
+        tg = tf - 0.16                         # it starts to break up before it goes
+        e = 0.0
+        if t >= tf:
+            e = 1 - math.exp(-2.4 * (min(t, t_freeze) - tf))
+            if held:
+                e *= 1 - ease_out(clamp((t - t_snap) / 0.22))
+        corr = clamp((t - tg) / 0.16) if (t >= tg and not held) else 0.0
+        if held:
+            corr = 0.0
+        txt = glitch_text(s, 1 - 0.85 * corr, seed=k) if corr > 0 else s
+        img = _bub2(txt, joy) if corr <= 0 else _bubble_img(txt, joy)
+        glow = OR if joy else (0.45, 0.55, 0.8)
+        if e < 0.02:
+            if corr > 0:
+                kt.glitch(c, img, hx, hy, t, amt=1.2 * corr, anchor=anchor, alpha=a_in, seed=k)
+            else:
+                G = Layer(ss=1)
+                bw, bh = img.shape[1], img.shape[0]
+                bx = hx - bw if joy else hx
+                G.rect(bx - 8, hy - bh / 2 - 8, bx + bw + 8, hy + bh / 2 + 8,
+                       tuple(v * (0.25 + 0.5 * hit) for v in glow))
+                G.comp(c, a_in * (0.6 + 0.4 * math.exp(-(t - ts) / 0.3)), mode="add")
+                put(c, img, hx, hy, anchor=anchor, alpha=a_in)
+        else:
+            _shards(c, img, hx, hy, anchor, e, 1 if joy else -1, seed=k * 13 + 1, alpha=a_in)
+            if not frozen and not held:
+                S = Layer(ss=1)
+                for j in range(6):
+                    sy_ = hy + (hash01(k, j) - 0.5) * 50
+                    S.line((hx, sy_), (hx + (1 if joy else -1) * 700 * e, sy_ - 420 * e), (0.9, 0.9, 0.92), 1,
+                           a=0.4 * (1 - e))
+                S.comp(c, 1.0, mode="add")
+    if frozen:
+        g = c.mean(2, keepdims=True)
+        c[:] = g * 0.75
+        hb = math.exp(-((t - t_freeze) % (BEAT * 2)) / 0.12)
+        Hb = Layer(ss=1)
+        Hb.circle((KX, KY), 40 + 30 * hb, OR, 2)
+        Hb.comp(c, 0.5 * hb, mode="add")
+    if held:
+        k_ = ease_out(clamp((t - t_snap) / 0.5))
+        R = Layer(ss=1)
+        R.circle((KX, KY), 60 + 1500 * k_, OR, max(1, int(10 * (1 - k_))))
+        R.comp(c, (1 - k_), mode="add")
+        put(c, rect_cached(KW + 24, KH + 24, (0, 0, 0), 0, 5, OR), KX + jx, KY + jy, alpha=0.9 * hit + 0.4,
+            mode="add")
+        hd = load_asset("c07_hands", "mono")
+        u = ease_out(clamp((t - t_snap) / 0.12))
+        put(c, hd, KX + jx, lerp(H + 420, y0 + KH - 60, u), scale=1100 / hd.shape[1], alpha=0.95)
+    for i, a, b in ((41, (0, 2), (3, 5)), (42, (0, 1), (2, 3)), (43, (0, 1), (2, 4))):
+        word(c, t, i, a, 190, 140, 58, "slide", v=True, anchor=(0.5, 0.0), color=OR if i == 41 else LIGHT, dx=0,
+             dy=-60)
+        word(c, t, i, b, 100, 200, 58, "slide", v=True, anchor=(0.5, 0.0), color=LIGHT, dx=0, dy=-60)
+    w44 = kt.words(44)
+    if t >= w44[0].t - 0.05:
+        word(c, t, 44, 0, 700, 330, 110, "slam", color=LIGHT, sh=4)
+        word(c, t, 44, 1, 1330, 560, 260, "slam", color=OR, sh=18, s0=2.8)
+    fl = _flash(t, [t_snap], 0.15, 0.7)
+    return dict(grain=0.0 if frozen else 0.03, vignette=1.5 if frozen else 1.1, flash=fl, ca=1 + 6 * fl,
+                bloom=0.35 if held else 0.0)

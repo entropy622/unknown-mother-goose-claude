@@ -1237,14 +1237,6 @@ def s_wish2(c, t, lt, d):
     b = load_asset("c05_back", "mono")
     put(c, b, W / 2 + 20, 720 + 8 * math.sin(lt), scale=820 / b.shape[0], alpha=0.95)
     _stream_prompts(c, t, t - lt - 2.0, rate=4.0, life=1.5, x1=W - 30, x0=W / 2 + 80, y_mid=420)
-    # typing hands flash at the bottom of the pane on kicks
-    kp = kick_pulse(t)
-    if kp > 0.15:
-        try:
-            hd = load_asset("n22_user_hands", "soft")
-            put(c, hd, W / 2, y1 - 40, scale=480 / hd.shape[0], alpha=0.55 * kp)
-        except Exception:
-            pass
     word(c, t, 51, 0, 280, 160, 48, "slide", color=INKD, dx=-160)
     word(c, t, 51, 1, W - 280, 160, 48, "slide", color=INKD, dx=160)
     word(c, t, 51, 2, W / 2, 120, 140, "slam", s0=1.5, sh=4)

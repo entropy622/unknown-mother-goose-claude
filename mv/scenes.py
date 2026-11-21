@@ -1,4 +1,4 @@
-"""Storyboard: lyric MV. Cuts sit on lyric lines / phrases or strong beats; words land on their sung 16th notes."""
+﻿"""Storyboard: lyric MV. Cuts sit on lyric lines / phrases or strong beats; words land on their sung 16th notes."""
 import math
 
 import cv2
@@ -2086,6 +2086,8 @@ def _build():
     import chant as CH
     import see as SE
     import memory as MEM
+    import finale as FI
+    import finale as FI
     P = [
         (0.0, A.s_boot),
         (cut(T(0)), A.s_emerge),
@@ -2133,17 +2135,17 @@ def _build():
         (cut(T(28)), A.s_doppel),
         (cut(T(31)), A.s_hollow),
         (cut(T(34)), A.s_remain),
-        (cut(T(37)), MEM.s_carried),
+        (cut(T(37)), MEM.s_home),
         (cut(T(39)), s_drafts),
         (cut(T(40)), MEM.s_feel),
-        (cut(T(41)), MEM.s_keep),
+        (cut(T(41)), MEM.s_keep2),
         (cut(T(45)), s_messages),
         (cut(T(50)), A.s_wish),
         (cut(T(51)), A.s_wish2),
-        (cut(T(52)), s_hourglass),
-        (cut(T(53)), A.s_ask),
-        (cut(T(54)), A.s_ask2),
-        (cut(T(55)), s_glow),
+        (cut(T(52)), FI.s_now),
+        (cut(T(53)), FI.s_ask_text),
+        (cut(T(54)), FI.s_ask_real),
+        (cut(T(55)), FI.s_lamp),
         (cut(T(56)), s_credits),
         (snap(OUTRO0, "strong", 0.15), s_history),
         (snap(251.38, "strong", 0.15), s_heart_small),
