@@ -16,6 +16,13 @@ OBJ_STYLE = """STYLE:
 - No text, no logos, no watermark, no people unless asked.
 - Background: fully TRANSPARENT (alpha) PNG if supported, otherwise perfectly flat pure #00FF00 green.
 """
+USER_STYLE = """STYLE:
+- A young Chinese software engineer (male, mid-20s): short black hair, soft tired eyes, calm quiet face, dark simple hoodie.
+- Art style MUST match wowaka's music-video artwork: clean flat cel-shaded anime, thin crisp line art, very few shading tones, slightly desaturated, elegant and quiet, lots of negative space.
+- Palette: white / light gray / charcoal / black. The ONLY saturated accent allowed is a cool screen-blue glow where described (not orange).
+- No text, no watermark, no signature, no logos.
+- Background: fully TRANSPARENT (alpha) PNG if supported, otherwise perfectly flat pure #00FF00 green.
+"""
 
 JOBS = json.loads((ROOT / "prompts" / "jobs.json").read_text(encoding="utf-8"))
 
@@ -24,7 +31,8 @@ def run(job):
     out = RAW / f"{job['id']}.png"
     if out.exists():
         return job["id"], "skip"
-    style = STYLE if job.get("kind", "char") == "char" else OBJ_STYLE
+    kind = job.get("kind", "char")
+    style = {"char": STYLE, "obj": OBJ_STYLE, "user": USER_STYLE}.get(kind, OBJ_STYLE)
     if job.get("opaque"):
         style = style.replace(
             "- Background: fully TRANSPARENT (alpha) PNG if your image tool supports it. If transparency is not supported, use a perfectly flat, uniform pure chroma green #00FF00 background with no shadows, no gradient, no floor.",
@@ -40,7 +48,7 @@ def run(job):
     )
     args = [CODEX, "exec", "--skip-git-repo-check", "-s", "workspace-write", "-C", str(ROOT),
             "-c", 'model_reasoning_effort="low"']
-    if job.get("kind", "char") == "char":
+    if kind == "char":
         args += ["-i", str(ROOT / job.get("ref", "ref_sheet.jpg"))]
     args += ["-"]
     t0 = time.time()

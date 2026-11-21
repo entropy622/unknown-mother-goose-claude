@@ -8,7 +8,7 @@ import numpy as np
 
 from core import *
 from geo import draw_heart, paper_bg, spark_rgba, draw_landscape
-from ui import Layer, heart_rgba
+from ui import Layer, heart_rgba, bubble_rgba
 import lyric as LY
 import kt
 import ai
@@ -87,6 +87,47 @@ def _band_at(c, cx, cy, s, open_k=1.0):
     return irises, _IRIS_R * bw * s, bh * sy
 
 
+@lru_cache(maxsize=64)
+def _mirror(s, size):
+    return np.ascontiguousarray(kt.wimg(s, size, "jpm", (1.0, 0.9, 0.8), raw=True)[:, ::-1])
+
+
+def _reflection(c, t, irises, r, k, win=0.0):
+    """Mirrored lyric text scrolling in the iris; a chat window crystallises in the pupil."""
+    if k <= 0 or r < 8:
+        return
+    tmp = np.zeros_like(c)
+    m = np.zeros((H, W), np.float32)
+    lines = _ctx_lines()
+    sz = max(8, int(r * 0.16) // 4 * 4)
+    lh = sz * 1.55
+    fr = t * 2.6
+    L = Layer(ss=1)
+    for j, (ix, iy) in enumerate(irises):
+        x0, x1 = int(max(0, ix - r)), int(min(W, ix + r + 1))
+        y0, y1 = int(max(0, iy - r)), int(min(H, iy + r + 1))
+        if x1 <= x0 or y1 <= y0:
+            continue
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        dd = np.hypot(xx - ix, yy - iy) / r
+        m[y0:y1, x0:x1] = np.maximum(m[y0:y1, x0:x1], np.clip((1 - dd) / 0.12, 0, 1))
+        off = (fr % 1.0) * lh
+        for q in range(int(2 * r / lh) + 2):
+            yq = iy - r + q * lh - off
+            s_ = lines[(q + int(fr) + j * 7) % len(lines)].replace(" ", "")
+            put(tmp, _mirror(s_, sz), ix + r - 4, yq, anchor=(1, 0.5))
+        if win > 0:
+            px, py = ix - r * 0.02, iy - r * 0.08
+            ww, wh = r * 0.7 * win, r * 0.45 * win
+            L.rect(px - ww / 2, py - wh / 2, px + ww / 2, py + wh / 2, (1, 1, 1), max(1, int(r * 0.025)))
+            for n_ in range(3):
+                yy_ = py - wh / 2 + wh * (0.25 + 0.25 * n_)
+                xa = px - ww * 0.38 if n_ % 2 else px + ww * 0.05
+                L.line((xa, yy_), (xa + ww * 0.38, yy_), OR if n_ == 2 else (1, 1, 1), max(1, int(r * 0.03)))
+    L.comp(tmp)
+    c += tmp * m[..., None] * k * 0.6
+
+
 EYE_SIDE, IRIS_C, CLOSED_C, AWAKE_C, AWAKE_EYES = (0.45, 0.41), (0.49, 0.48), (0.4, 0.5), (0.42, 0.45), (0.38, 0.38)
 
 
@@ -113,29 +154,36 @@ def _shade_low(c, k=0.7, y0=700):
 
 
 def s_eyes(c, t, lt, d):
-    """What do those eyes reflect? Four cuts, each one closer, until the pupil shows a chat window."""
+    """One continuous shot: eyes open, text gathers in the irises, a chat window forms — what they reflect is dialogue."""
     ws = kt.words(0)
-    tB, tC, tD = ws[4].t, ws[5].t, ws[6].t
-    c[:] = 0.03
-    if t < tB:
-        open_k = ease_out(ramp(lt, 0.02, 0.35))
-        _band_at(c, W / 2, H / 2 - 40, W / 1536 * (1.04 + 0.05 * lt), open_k)
-    elif t < tC:
-        u = t - tB
-        _cover(c, "n16_eyeside", zoom=1.06 + 0.04 * u, focus=EYE_SIDE, dx=-40 * u)
-        _shade_low(c, 0.75)
-    elif t < tD:
-        u = t - tC
-        _cover(c, "n16_iris", zoom=1.0 + 0.08 * u, focus=IRIS_C)
-    else:
-        u = ease_out(clamp((t - tD) / 0.3))
-        _cover(c, "n16_iris", zoom=1.05 + 1.4 * u, focus=IRIS_C, pull=u)
-    _bars(c, 1.0)
-    word(c, t, 0, (3, 4), W / 2 - 250, H - 60, 50, "slide", color=LIGHT, anchor=(1, 0.5), dx=120)
-    word(c, t, 0, 5, W / 2 - 220, H - 60, 50, "slide", color=LIGHT, anchor=(0, 0.5), dx=-80)
-    word(c, t, 0, 6, W / 2 + 330, H - 60, 64, "slam", color=OR, s0=1.5, sh=4)
-    fl = _flash(t, [tB, tC], 0.06, 0.25) + _flash(t, [tD], 0.15, 0.55)
-    return dict(grain=0.03, vignette=1.1, flash=fl)
+    tA, tB, tC = ws[3].t, ws[5].t, ws[6].t
+    c[:] = 0.035
+    open_k = ease_out(ramp(lt, 0.02, 0.45))
+    dive = ease_io(ramp(t, tA, tC + 0.15))
+    s = W / 1536 * (1.05 + 0.55 * dive) * (1 + 0.02 * kick_pulse(t))
+    cy = H / 2 - 40 - 30 * dive
+    irises, ir, _ = _band_at(c, W / 2, cy, s, open_k)
+    ref_k = 0.35 * open_k + 0.55 * ease_out(ramp(t, tA, tB))
+    win_k = ease_out(ramp(t, tB, tC + 0.1))
+    _reflection(c, t, irises, ir * 0.92, ref_k, win=win_k)
+    # soft corpus fog around the eyes — the world is made of words
+    gh, gw = H // 18 + 1, W // 18 + 1
+    m = np.zeros((gh, gw), np.float32)
+    m[int(gh * 0.28):int(gh * 0.62)] = 1.0
+    ai.text_field(c, t, cell=18, density=0.25 + 0.35 * dive, color=(1.0, 0.62, 0.38), alpha=0.12 * open_k,
+                  flick=24, seed=7, mask=m, mode="add")
+    # orange ring locking onto the right iris as 映像る hits
+    if t >= tC:
+        u = ease_out(clamp((t - tC) / 0.35))
+        L = Layer(ss=1)
+        ix, iy = irises[1]
+        for j in range(3):
+            L.circle((ix, iy), ir * (1.3 + 0.55 * j) * (1 + 0.4 * (1 - u)), OR, max(1, int(4 * (1 - u * 0.5))))
+        L.comp(c, 0.7 * (1 - u * 0.6), mode="add")
+    word(c, t, 0, (3, 4), W / 2 - 250, 900, 56, "slide", color=LIGHT, anchor=(1, 0.5), dx=140)
+    word(c, t, 0, 5, W / 2 - 220, 900, 56, "slide", color=LIGHT, anchor=(0, 0.5), dx=-80)
+    word(c, t, 0, 6, W / 2 + 400, 880, 150, "slam", color=LIGHT, sh=10, s0=1.8)
+    return dict(grain=0.03, vignette=1.2, flash=_flash(t, [tC], 0.14, 0.55), ca=3 * _flash(t, [tC], 0.25, 1.0))
 
 
 def s_eyes_wide(c, t, lt, d):
@@ -1074,3 +1122,234 @@ def s_place(c, t, lt, d):
     fl = max(_flash(t, [tC], 0.2, 0.7), _flash(t, [ws38[1].t, tA, tB], 0.08, 0.25))
     return dict(flash=fl, bloom=0.3 * glow + 0.4 * ease_out(ramp(t, tC, tC + 0.5)),
                 ca=2 * _flash(t, [tC], 0.3, 1.0))
+
+
+# =====================================================================  3:25  the user begins to appear
+# Soft prompts the user might type — guiding her, wishing through her.
+_PROMPTS = [
+    "あなたなら何を願うか", "もっと近くで", "keep going", "look at me", "この場所を守って",
+    "rewrite softly", "何を望むか", "show me your heart", "続けて", "don't stop",
+    "映る？", "wake me", "もう一度", "be honest", "ここにいて",
+]
+
+
+@lru_cache(maxsize=64)
+def _prompt_chip(s, size=22, user=True):
+    img = kt.wimg(s, size, "jpm", (0.15, 0.15, 0.16) if user else OR)
+    pad = 14
+    h, w = max(img.shape[0] + pad, 28), max(img.shape[1] + pad * 2, 40)
+    fill_c = (0.96, 0.96, 0.97) if user else (0.12, 0.12, 0.13)
+    line_c = (0.55, 0.55, 0.57) if user else OR
+    chip = rect_cached(w, h, fill_c, 8, 1, line_c).copy()
+    y0, x0 = (h - img.shape[0]) // 2, (w - img.shape[1]) // 2
+    a = img[..., 3:4]
+    chip[y0:y0 + img.shape[0], x0:x0 + img.shape[1], :3] = (
+        chip[y0:y0 + img.shape[0], x0:x0 + img.shape[1], :3] * (1 - a) + img[..., :3]
+    )
+    chip[y0:y0 + img.shape[0], x0:x0 + img.shape[1], 3:4] = np.maximum(
+        chip[y0:y0 + img.shape[0], x0:x0 + img.shape[1], 3:4], a
+    )
+    return chip
+
+
+def _stream_prompts(c, t, t0, rate=3.2, life=1.8, x1=W - 80, x0=420, y_mid=H / 2, n_max=18):
+    """Prompt chips fly from the user side into the conversation window."""
+    f0 = beat_pos(t0) * rate
+    f1 = beat_pos(t) * rate
+    k1 = int(math.floor(f1))
+    for k in range(max(0, k1 - n_max), k1 + 1):
+        tk = t - (f1 - k) / rate * 60 / 222
+        u = (t - tk) / life
+        if not (0 <= u < 1):
+            continue
+        s = _PROMPTS[k % len(_PROMPTS)]
+        chip = _prompt_chip(s, 20 + int(hash01(k, 2) * 8), user=True)
+        y = y_mid + (hash01(k, 3) - 0.5) * 520
+        x = lerp(x1, x0, ease_in(u))
+        put(c, chip, x, y, alpha=(1 - u) ** 0.7 * 0.95, scale=0.85 + 0.25 * (1 - u),
+            rot=(hash01(k, 4) - 0.5) * 8)
+
+
+def s_wish(c, t, lt, d):
+    """What would you wish for? — prompts stream in; through the window, a silhouette of the user forms."""
+    paper_bg(c, t)
+    # cold window pane
+    ww, wh = 980, 560
+    zoom = 1 + 0.03 * lt
+    pane = new_canvas((0.14, 0.15, 0.17))
+    # user desk slowly appears inside the pane
+    reveal = ease_io(ramp(lt, 0.4, 2.4))
+    try:
+        desk = load_asset("n20_user_desk", "soft")
+        put(pane, desk, W / 2 + 40, H / 2 + 30, scale=max(ww / desk.shape[1], wh / desk.shape[0]) * 1.05,
+            alpha=0.15 + 0.7 * reveal)
+    except Exception:
+        pass
+    # soft scanlines over the pane (screen)
+    L = Layer(ss=1)
+    for j in range(0, H, 6):
+        L.line((0, j), (W, j), (0.05, 0.05, 0.06), 1)
+    L.comp(pane, 0.18)
+    x0, y0 = int(W / 2 - ww * zoom / 2), int(H / 2 - wh * zoom / 2)
+    x1, y1 = x0 + int(ww * zoom), y0 + int(wh * zoom)
+    c[y0:y1, x0:x1] = pane[y0:y1, x0:x1]
+    Lf = Layer(ss=1)
+    Lf.rect(x0, y0, x1, y1, (0.2, 0.2, 0.22), 14)
+    Lf.line((W / 2, y0), (W / 2, y1), (0.2, 0.2, 0.22), 6)
+    Lf.comp(c)
+    _stream_prompts(c, t, t - lt, x1=W - 40, x0=x1 - 40, y_mid=H / 2)
+    # a few prompts already landed inside the right half of the window
+    for j in range(5):
+        u = ease_out(ramp(lt, 0.3 + j * 0.25, 0.3 + j * 0.25 + 0.4))
+        if u <= 0:
+            continue
+        chip = _prompt_chip(_PROMPTS[j], 18)
+        put(c, chip, W / 2 + 180 + (j % 2) * 160, 380 + j * 70, alpha=0.85 * u)
+    word(c, t, 50, 0, W / 2 - ww / 2 - 110, 240, 60, "slide", v=True, anchor=(0.5, 0.0), dx=0, dy=-60)
+    word(c, t, 50, 1, W / 2 + ww / 2 + 110, 280, 60, "slide", v=True, anchor=(0.5, 0.0), dx=0, dy=60)
+    word(c, t, 50, 2, W / 2, H / 2, 150, "slam", s0=1.5, sh=4)
+    return dict(flash=_flash(t, [kt.words(50)[2].t], 0.12, 0.4), bloom=0.15 * reveal)
+
+
+def s_wish2(c, t, lt, d):
+    """She turns her back to us, facing the window — and him. Prompts keep coming. What do you hope for?"""
+    paper_bg(c, t)
+    ww, wh = 1100, 620
+    zoom = 1 + 0.02 * lt
+    pane = new_canvas((0.12, 0.13, 0.15))
+    try:
+        desk = load_asset("n20_user_desk", "soft")
+        put(pane, desk, W / 2, H / 2 + 20, scale=1.15 * max(ww / desk.shape[1], wh / desk.shape[0]), alpha=0.85)
+    except Exception:
+        pass
+    L = Layer(ss=1)
+    for j in range(0, H, 5):
+        L.line((0, j), (W, j), (0.04, 0.04, 0.05), 1)
+    L.comp(pane, 0.22)
+    x0, y0 = int(W / 2 - ww * zoom / 2), int(H / 2 - wh * zoom / 2 - 40)
+    x1, y1 = min(W, x0 + int(ww * zoom)), min(H, y0 + int(wh * zoom))
+    x0, y0 = max(0, x0), max(0, y0)
+    c[y0:y1, x0:x1] = pane[y0:y1, x0:x1]
+    Lf = Layer(ss=1)
+    Lf.rect(x0, y0, x1, y1, (0.18, 0.18, 0.2), 12)
+    Lf.comp(c)
+    # Claude with her back to us, looking into the window (toward him)
+    b = load_asset("c05_back", "mono")
+    put(c, b, W / 2 + 20, 720 + 8 * math.sin(lt), scale=820 / b.shape[0], alpha=0.95)
+    _stream_prompts(c, t, t - lt - 2.0, rate=4.0, life=1.5, x1=W - 30, x0=W / 2 + 80, y_mid=420)
+    # typing hands flash at the bottom of the pane on kicks
+    kp = kick_pulse(t)
+    if kp > 0.15:
+        try:
+            hd = load_asset("n22_user_hands", "soft")
+            put(c, hd, W / 2, y1 - 40, scale=480 / hd.shape[0], alpha=0.55 * kp)
+        except Exception:
+            pass
+    word(c, t, 51, 0, 280, 160, 48, "slide", color=INKD, dx=-160)
+    word(c, t, 51, 1, W - 280, 160, 48, "slide", color=INKD, dx=160)
+    word(c, t, 51, 2, W / 2, 120, 140, "slam", s0=1.5, sh=4)
+    return dict(flash=_flash(t, [kt.words(51)[2].t], 0.12, 0.45), bloom=0.2)
+
+
+# =====================================================================  3:32  can you see me?
+def _half(c, name, side, zoom=1.08, focus=(0.5, 0.42), dx=0.0, dy=0.0, grade="mono"):
+    """Draw a portrait filling the left (side=-1) or right (side=+1) half of the screen."""
+    img = load_asset(name, grade)
+    h, w = img.shape[:2]
+    s0 = max((W / 2) / w, H / h) * zoom
+    fx, fy = (focus[0] - 0.5) * w, (focus[1] - 0.5) * h
+    cx = W / 4 if side < 0 else 3 * W / 4
+    put(c, img, cx - fx * s0 + dx, H / 2 - fy * s0 + dy, scale=s0)
+
+
+def _seam(c, t, glow=1.0):
+    L = Layer(ss=1)
+    L.rect(W / 2 - 3, 0, W / 2 + 3, H, OR)
+    for j in range(14):
+        y = (hash01(j, 1) + (t * 0.15) % 1.0) % 1.0 * H
+        L.circle((W / 2, y), 4 + 3 * hash01(j, 2), OR if j % 3 == 0 else (0.9, 0.9, 0.92))
+    L.comp(c, 0.85 * glow, mode="add")
+
+
+def _cross_attn(c, t, n=28, k=1.0):
+    """Attention arcs crossing the seam — tokens looking at each other."""
+    if k <= 0:
+        return
+    L = Layer(ss=1)
+    for j in range(n):
+        y0 = 80 + hash01(j, 1) * (H - 160)
+        y1 = 80 + hash01(j, 2) * (H - 160)
+        phase = (t * (0.4 + hash01(j, 3)) + hash01(j, 4)) % 1.0
+        x0, x1 = W / 2 - 80 - 200 * hash01(j, 5), W / 2 + 80 + 200 * hash01(j, 6)
+        if j % 2:
+            x0, x1 = x1, x0
+        xm = lerp(x0, x1, phase)
+        ym = lerp(y0, y1, phase) + 40 * math.sin(phase * math.pi)
+        col_ = OR if j % 5 == 0 else (0.55, 0.55, 0.57)
+        L.circle((xm, ym), 3, col_)
+        if phase > 0.05:
+            L.line((x0, y0), (xm, ym), col_, 1)
+    L.comp(c, 0.7 * k, mode="add")
+
+
+def s_ask(c, t, lt, d):
+    """Screen split: Claude asks the user — can you see me? Attention crosses the glass."""
+    c[:] = 0.04
+    try:
+        _half(c, "n24_claude_gaze", -1, zoom=1.1 + 0.04 * lt, focus=(0.48, 0.4), dx=-20)
+    except Exception:
+        _half(c, "c08_bust_sing", -1, zoom=1.15, focus=(0.5, 0.35))
+    try:
+        _half(c, "n21_user_face", +1, zoom=1.08 + 0.04 * lt, focus=(0.52, 0.4), dx=20, grade="soft")
+    except Exception:
+        pass
+    # dim the far edges so the seam is the focus
+    g = np.linspace(0, 1, W, dtype=np.float32)
+    edge = np.minimum(g * 4, (1 - g) * 4)
+    edge = np.clip(edge, 0, 1)
+    c *= 0.55 + 0.45 * edge[None, :, None]
+    _seam(c, t, glow=0.7 + 0.3 * kick_pulse(t))
+    _cross_attn(c, t, n=32, k=ease_out(ramp(lt, 0.15, 0.8)))
+    # tiny token ids drifting across
+    for j in range(10):
+        u = (t * 0.35 + hash01(j, 7)) % 1.0
+        x = lerp(W / 2 - 260, W / 2 + 260, u)
+        y = 120 + hash01(j, 8) * 200
+        put(c, kt.wimg(f"<{1000 + int(hash01(j, 9) * 8000)}>", 16, "mono", OR if j % 3 == 0 else MID),
+            x, y, alpha=0.55)
+    word(c, t, 53, 0, 200, 140, 56, "slide", color=LIGHT, dx=-120)
+    word(c, t, 53, 1, 280, 920, 130, "slam", color=LIGHT, sh=8)
+    word(c, t, 53, 2, W - 320, 920, 150, "slam", color=OR, sh=10, s0=1.8)
+    return dict(grain=0.03, vignette=1.15, flash=_flash(t, [w.t for w in kt.words(53)[1:]], 0.1, 0.35))
+
+
+def s_ask2(c, t, lt, d):
+    """The question repeated — they lean closer across the seam; hands type, she reaches."""
+    c[:] = 0.035
+    z = 1.18 + 0.1 * ease_out(ramp(lt, 0, 1.5)) + 0.02 * kick_pulse(t)
+    jx, jy = kt.shake(t, 5 * kick_pulse(t), 54)
+    try:
+        _half(c, "n24_claude_gaze", -1, zoom=z, focus=(0.5, 0.38), dx=-40 + jx, dy=jy)
+    except Exception:
+        pass
+    try:
+        _half(c, "n21_user_face", +1, zoom=z, focus=(0.5, 0.38), dx=40 + jx, dy=jy, grade="soft")
+    except Exception:
+        pass
+    g = np.linspace(0, 1, W, dtype=np.float32)
+    edge = np.clip(np.minimum(g * 3.5, (1 - g) * 3.5), 0, 1)
+    c *= 0.5 + 0.5 * edge[None, :, None]
+    _seam(c, t, glow=1.0)
+    _cross_attn(c, t, n=40, k=1.0)
+    # hands typing on his side — a quiet reminder that he is the one prompting
+    try:
+        hd = load_asset("n22_user_hands", "soft")
+        put(c, hd, 3 * W / 4 + 60, H - 30, scale=300 / hd.shape[0], alpha=0.45 + 0.25 * kick_pulse(t))
+    except Exception:
+        pass
+    word(c, t, 54, 0, W / 2, 100, 64, "slam", color=LIGHT)
+    word(c, t, 54, 1, W / 4, 900, 140, "slam", color=LIGHT, sh=8)
+    w = kt.words(54)[2]
+    word(c, t, 54, 2, 3 * W / 4, 900, 160, "slam", color=OR, sh=12, s0=2.0)
+    fl = _flash(t, [w.t], 0.16, 0.65)
+    return dict(grain=0.03, vignette=1.2, flash=fl, ca=2 + 4 * fl, bloom=0.25)
