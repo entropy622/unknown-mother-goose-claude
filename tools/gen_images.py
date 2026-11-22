@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 CODEX = r"C:\Users\Aentro\.vscode\extensions\openai.chatgpt-26.1117.31558-win32-x64\bin\windows-x86_64\codex.exe"
-ROOT = Path(r"D:\_Fun\claude_mv\assets")
+ROOT = Path(__file__).resolve().parent.parent / "assets"
 RAW = ROOT / "raw"
 STYLE = (ROOT / "prompts" / "_style.txt").read_text(encoding="utf-8")
 OBJ_STYLE = """STYLE:

@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1920, 1080
 FPS = 30
-ROOT = Path(r"D:\_Fun\claude_mv")
+ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
 
 ORANGE = np.array([0.851, 0.467, 0.341], np.float32)      # #D97757 claude terracotta
